@@ -1,17 +1,16 @@
 <!DOCTYPE html>
 <!--
-scratcher22-scale-fit-v3.html
-- Fix: crossfader reaches full right (scale-aware dragging).
-- Tweak: crossfader handle lowered a few px (top: -2px).
-- Modes: Fit / Fill / 100% + Fullscreen (unchanged).
+scratcher22-scale-fill-pinch.html
+- No scale UI. Works with native window resize + pinch/zoom.
+- Auto scales to fill screen (up or down) without clipping.
+- Crossfader reaches full width; handle lowered a few px.
+- Stylus: triangle-only at ~3 o’clock, no rail.
 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
-  />
+  <!-- Allow native pinch-zoom; no blocking -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Scratcher - Pro Turntable Controller</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
@@ -37,26 +36,13 @@ scratcher22-scale-fit-v3.html
       background:var(--bg-dark);
       color:#E2E8F0;
       font-family:'Inter', sans-serif;
-      overflow:hidden;                 /* no page scroll; we scale to fit */
+      overflow:hidden;                 /* no page scroll; the app scales to fit */
       display:flex;
-      align-items:center;              /* center for nice Fill cropping */
+      align-items:center;              /* center the app */
       justify-content:center;
+      /* Let browsers handle pinch-zoom */
+      touch-action: auto;
     }
-
-    /* Fixed, tiny controls outside the scaled app */
-    #scale-controls{
-      position:fixed; top:8px; right:8px; z-index:9999;
-      display:flex; gap:6px;
-      font-family:ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Inter, sans-serif;
-    }
-    #scale-controls button{
-      font-size:12px; font-weight:700; line-height:1;
-      padding:6px 8px; border-radius:8px; border:1px solid #334155;
-      background:#0b1220; color:#cbd5e1; opacity:.75;
-      box-shadow:0 2px 8px rgba(0,0,0,.45);
-    }
-    #scale-controls button:hover{ opacity:1; }
-    #scale-controls .primary{ border-color:#38BDF8; color:#e0f2fe; }
 
     /* Scale shell gets transform: scale(...) */
     #app-scale-shell{
@@ -65,7 +51,7 @@ scratcher22-scale-fit-v3.html
       will-change: transform, width, height;
     }
 
-    /* Your original container, fixed desktop width */
+    /* Fixed desktop layout kept intact */
     .dj-container{
       width:1200px; max-width:1200px; min-width:1200px;
       height:auto;
@@ -155,7 +141,7 @@ scratcher22-scale-fit-v3.html
       width:100%; margin-top:5px; box-shadow:var(--box-shadow-inset);
     }
     .crossfader-handle{
-      position:absolute; top:-2px; /* lowered a few px from -5px */
+      position:absolute; top:-2px; /* lowered a few px */
       width:30px; height:25px; background:#E2E8F0; border:1px solid #fff; border-radius:4px;
       cursor:grab; transition:left .05s ease-out;
       box-shadow:0 3px 6px rgba(0,0,0,.8), 0 0 1px #fff, inset 1px 1px 3px rgba(255,255,255,.4);
@@ -217,14 +203,7 @@ scratcher22-scale-fit-v3.html
   </style>
 </head>
 <body>
-
-  <!-- Minimal, fixed UI to control scaling/fullscreen -->
-  <div id="scale-controls">
-    <button id="scaleModeBtn" class="primary" title="Cycle Fit → Fill → 100%">Scale: Fit</button>
-    <button id="fsBtn" title="Toggle Fullscreen">⛶</button>
-  </div>
-
-  <!-- SCALE SHELL: we scale this so the 1200px app fits any viewport -->
+  <!-- SCALE SHELL: auto scales to fill viewport (can also be pinched/zoomed by the browser) -->
   <div id="app-scale-shell">
     <div class="dj-container">
 
@@ -712,14 +691,17 @@ scratcher22-scale-fit-v3.html
 
     let activeDeck = null;
     function handleStart(e, deckId){
-      e.preventDefault(); initAudio();
+      // Allow pinch-zoom: if multi-touch, do nothing and let browser handle it.
+      if (e.touches && e.touches.length > 1) return;
+      e.preventDefault();
+      initAudio();
       const deck = decks[deckId], st = deck.state;
       if (!st.buffer) return;
 
       st.isDragging = true; activeDeck = deck; st.hasMoved=false;
       if (st.source){ st.source.stop(); st.source.disconnect(); st.source=null; }
 
-      st.rotationStartClientX = e.clientX || e.touches[0].clientX;
+      st.rotationStartClientX = (e.clientX != null) ? e.clientX : e.touches[0].clientX;
       st.scratchRate = 0;
       st.eq.scratch.frequency.linearRampToValueAtTime(6000, audioCtx.currentTime + .01);
 
@@ -731,11 +713,13 @@ scratcher22-scale-fit-v3.html
     }
 
     function handleMove(e){
+      // Let pinch-zoom go through
+      if (e.touches && e.touches.length > 1) return;
       if (!activeDeck || !activeDeck.state.isDragging) return;
       e.preventDefault();
       const deck = activeDeck, st = deck.state;
 
-      const clientX = e.clientX || (e.touches && e.touches.length ? e.touches[0].clientX : null);
+      const clientX = (e.clientX != null) ? e.clientX : (e.touches && e.touches.length ? e.touches[0].clientX : null);
       if (clientX === null) return;
 
       st.hasMoved = true;
@@ -799,7 +783,7 @@ scratcher22-scale-fit-v3.html
     decks.B.eqMid.addEventListener('input', (e) => updateEQ('B','mid', parseFloat(e.target.value)));
     decks.B.eqHigh.addEventListener('input',(e) => updateEQ('B','high',parseFloat(e.target.value)));
 
-    /* Crossfader drag — SCALE-AWARE so it reaches both ends even when the app is scaled */
+    /* Crossfader drag — SCALE-AWARE so it reaches both ends even when app is scaled */
     let isDraggingX = false;
     const HANDLE_HALF = 15; // 30px / 2
 
@@ -817,9 +801,16 @@ scratcher22-scale-fit-v3.html
       crossfaderHandle.style.left = `${leftCSS}px`;
     });
 
-    crossfaderHandle.addEventListener('touchstart',(e)=>{ e.preventDefault(); isDraggingX=true; }, {passive:false});
+    crossfaderHandle.addEventListener('touchstart',(e)=>{
+      // If multi-touch, allow pinch-zoom; don't capture
+      if (e.touches && e.touches.length > 1) return;
+      e.preventDefault(); isDraggingX=true;
+    }, {passive:false});
+
     document.addEventListener('touchmove',(e)=>{
-      if (!isDraggingX || !e.touches.length) return;
+      if (!isDraggingX || !e.touches || !e.touches.length) return;
+      // Let multi-touch go for pinch-zoom
+      if (e.touches.length > 1) return;
       const rect = crossfaderRail.getBoundingClientRect();
       const railCSSWidth = crossfaderRail.offsetWidth;
       let xScaled = e.touches[0].clientX - rect.left;
@@ -848,22 +839,17 @@ scratcher22-scale-fit-v3.html
     document.body.addEventListener('click', initAudio, {once:true});
     document.body.addEventListener('touchstart', initAudio, {once:true});
 
-    /* --------- SCALE-TO-FIT ENGINE with modes --------- */
+    /* --------- SCALE ENGINE (always fills; allows upscaling) ---------
+       Uses min(scaleX, scaleY) WITHOUT clamping to 1, so it grows on large screens.
+       Pinch-zoom still works because we don't block multi-touch and viewport allows scaling.
+    ------------------------------------------------------------------*/
     (function(){
       const SHELL   = document.getElementById('app-scale-shell');
       const APP     = document.querySelector('.dj-container');
-      const BTN     = document.getElementById('scaleModeBtn');
-      const FSBTN   = document.getElementById('fsBtn');
-      const BASE_W  = 1200;   // fixed design width
-      let MODE = 'fit';       // 'fit' | 'fill' | '100'
-      let lastTap = 0;
-
-      function label(){
-        BTN.textContent = 'Scale: ' + (MODE==='fit' ? 'Fit' : MODE==='fill' ? 'Fill' : '100%');
-      }
+      const BASE_W  = 1200;
 
       function applyScale(){
-        // Reset to measure intrinsic height
+        // Reset to measure intrinsic height at CSS scale 1
         SHELL.style.transform = 'scale(1)';
         APP.style.width = BASE_W + 'px';
 
@@ -876,49 +862,16 @@ scratcher22-scale-fit-v3.html
         const sW = availW / BASE_W;
         const sH = availH / baseH;
 
-        let s;
-        if (MODE === 'fit')  s = Math.min(sW, sH, 1);   // don't upscale in Fit
-        else if (MODE === 'fill') s = Math.max(sW, sH); // allow overscale to cover
-        else s = 1;                                     // 100%
+        const s = Math.min(sW, sH); // allow >1 upscaling
 
         SHELL.style.transform = `scale(${s})`;
         SHELL.style.width  = (BASE_W * s) + 'px';
         SHELL.style.height = (baseH  * s) + 'px';
       }
 
-      BTN.addEventListener('click', () => {
-        MODE = (MODE === 'fit') ? 'fill' : (MODE === 'fill') ? '100' : 'fit';
-        label(); applyScale();
-      });
-
-      // Double-tap anywhere toggles Fit <-> Fill
-      document.addEventListener('touchend', (e)=>{
-        const now = Date.now();
-        if (now - lastTap < 300){
-          MODE = (MODE === 'fit') ? 'fill' : 'fit';
-          label(); applyScale();
-        }
-        lastTap = now;
-      });
-
-      // Keyboard shortcuts: F = Fill, 1 = 100%, 0 = Fit
-      document.addEventListener('keydown', (e)=>{
-        if (e.key === 'f' || e.key === 'F'){ MODE = 'fill'; label(); applyScale(); }
-        if (e.key === '1'){ MODE = '100'; label(); applyScale(); }
-        if (e.key === '0'){ MODE = 'fit';  label(); applyScale(); }
-      });
-
-      // Fullscreen toggle
-      FSBTN.addEventListener('click', async ()=>{
-        try{
-          if (!document.fullscreenElement) { await document.documentElement.requestFullscreen(); }
-          else { await document.exitFullscreen(); }
-        }catch(_){}
-      });
-
       window.addEventListener('resize', applyScale);
       window.addEventListener('orientationchange', applyScale);
-      document.addEventListener('DOMContentLoaded', ()=>{ label(); setTimeout(applyScale, 0); });
+      document.addEventListener('DOMContentLoaded', ()=>{ setTimeout(applyScale, 0); });
     })();
   </script>
 
@@ -1011,7 +964,10 @@ scratcher22-scale-fit-v3.html
           }catch(e){}
         }
 
-        function start(e){ e.preventDefault(); dragging = true; }
+        function start(e){
+          if (e.touches && e.touches.length > 1) return; // allow pinch-zoom
+          e.preventDefault(); dragging = true;
+        }
         function move(clientX){
           if (!dragging) return;
           var rect = slider.getBoundingClientRect();
@@ -1027,6 +983,7 @@ scratcher22-scale-fit-v3.html
 
         hit.addEventListener('touchstart', function(e){ start(e); }, { passive:false });
         document.addEventListener('touchmove', function(e){
+          if(e.touches && e.touches.length > 1) return; // let pinch zoom
           if(e.touches && e.touches.length){ move(e.touches[0].clientX); }
         }, { passive:false });
         document.addEventListener('touchend', end);

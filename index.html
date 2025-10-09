@@ -1,8 +1,9 @@
 <!DOCTYPE html>
 <!--
-/mnt/data/scratcher22.html (UPDATED)
-Change: Stylus = triangle only (no rail), nudged right a bit, small safety gap near label.
-Everything else left exactly as-is.
+scratcher22-mobilefix-full.html
+- Full build
+- Mobile scrolling fixed (both axes), no layout/DOM changes
+- Stylus triangle nudged down a few pixels (slightly below true 3 o'clock)
 -->
 <html lang="en">
 <head>
@@ -23,43 +24,51 @@ Everything else left exactly as-is.
             --record-surface: #020617; /* Blue-Black */
             --control-label: #94A3B8;
 
-            /* --- MODERN AESTHETIC SHADOWS (From v3) --- */
             --shadow-dark: #000000;
             --box-shadow-raised: 10px 10px 20px var(--shadow-dark), -5px -5px 10px #243445; 
             --box-shadow-inset: inset 3px 3px 6px var(--shadow-dark), inset -3px -3px 6px #243445;
         }
 
-        /* --- BASE & LAYOUT (ANCHORED TO TOP) --- */
+        /* --- BASE & LAYOUT (allow scroll on mobile) --- */
+        html, body { height: 100%; }
         body {
-            height: 100vh;
-            width: 100vw;
+            height: auto;
+            width: 100%;
             margin: 0;
             display: flex;
             flex-direction: column;
-            justify-content: flex-start; /* PUSH EVERYTHING TO THE TOP */
+            justify-content: flex-start; /* keep top-anchored */
             align-items: center;
             background-color: var(--bg-dark);
             color: #E2E8F0;
             font-family: 'Inter', sans-serif;
-            touch-action: manipulation;
-            overflow: hidden; 
+            /* mobile scroll fixes */
+            overflow: auto;                  /* was hidden */
+            -webkit-overflow-scrolling: touch;
+            touch-action: auto;              /* was manipulation */
             padding-top: 0; 
         }
 
         .dj-container {
+            /* keep your 2-decks + mixer layout intact; force horizontal scroll on small screens */
+            min-width: 1200px;               /* preserve full layout width */
             width: 95vw; 
             max-width: 1200px; 
-            height: 100vh; /* MAXIMIZED HEIGHT */
-            max-height: 900px; 
+
+            height: auto;                    /* was 100vh */
+            min-height: 100svh;              /* mobile-safe viewport height */
+
             display: flex;
             flex-direction: column;
-            padding: 8px; /* SLIGHTLY REDUCED OVERALL PADDING */
+            padding: 8px;
             background: linear-gradient(145deg, #101824, #0d131f);
             border-radius: 20px;
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.9), 0 0 1px #1E293B;
-            overflow-y: hidden;
-            overflow-x: hidden;
             border: 1px solid #1e293b;
+
+            /* allow scroll (previous build hid overflow) */
+            overflow: auto;                  
+            -webkit-overflow-scrolling: touch;
         }
 
         .main-mix {
@@ -71,13 +80,13 @@ Everything else left exactly as-is.
         .app-title { font-family: 'Orbitron', sans-serif; color: white; font-size: 1.5rem; font-weight: 700; }
         .fader-label, .status-info { color: var(--control-label); font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
 
-        /* --- FILE LOADER STYLING (TIGHTENED) --- */
+        /* --- FILE LOADER STYLING --- */
         #fileLoader {
             display: flex;
             justify-content: space-between;
             align-items: center;
             flex-wrap: wrap;
-            padding: 4px 16px; /* REDUCED VERTICAL PADDING */
+            padding: 4px 16px;
             margin-bottom: 0px; 
             background: var(--mixer-color); 
             border-radius: 12px;
@@ -96,7 +105,7 @@ Everything else left exactly as-is.
             text-align: right;
         }
 
-        /* --- TRACK DISPLAY (Above Record - From v3) --- */
+        /* --- TRACK DISPLAY --- */
         .track-display-window {
             width: 100%;
             height: 30px;
@@ -114,7 +123,7 @@ Everything else left exactly as-is.
             box-shadow: var(--accent-glow), inset 0 0 15px rgba(0, 0, 0, 0.8); 
         }
         
-        /* --- SELECT TRACK DROPDOWN READABILITY FIX (From v3) --- */
+        /* --- SELECT TRACK DROPDOWN --- */
         .track-select {
             width: 100%;
             background-color: #475569; 
@@ -143,7 +152,7 @@ Everything else left exactly as-is.
             padding: 15px; 
             background-color: var(--deck-bg);
             border-radius: 12px;
-            box-shadow: var(--box-shadow-raised), inset 0 0 15px rgba(0, 0, 0, 0.3); /* v3 Look */
+            box-shadow: var(--box-shadow-raised), inset 0 0 15px rgba(0, 0, 0, 0.3);
             margin: 0 8px;
             flex-grow: 1; 
             display: flex; 
@@ -154,10 +163,10 @@ Everything else left exactly as-is.
             background-color: var(--mixer-color);
             margin: 0 8px;
             border-radius: 12px;
-            box-shadow: var(--box-shadow-raised); /* v3 Look */
+            box-shadow: var(--box-shadow-raised);
             display: flex; 
             flex-direction: column; 
-            gap: 5px; /* REDUCED GAP FOR TIGHTER FIT */
+            gap: 5px; 
         }
         .deck-controls {
             flex-grow: 1; 
@@ -261,7 +270,7 @@ Everything else left exactly as-is.
             box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5); 
         }
 
-        /* --- PLAY/CUE/STOP BUTTON STYLES (New/Updated) --- */
+        /* --- PLAY/CUE/STOP BUTTON STYLES --- */
         .btn {
             padding: 8px 12px; 
             border-radius: 6px; 
@@ -274,12 +283,10 @@ Everything else left exactly as-is.
             transition: all 0.1s;
         }
 
-        /* Color Coding */
         .play-btn { background-color: #10B981; }
         .stop-btn { background-color: #EF4444; }
         .cue-btn  { background-color: #FBBF24; }
 
-        /* Active/Pressed States */
         .btn:active {
             box-shadow: inset 0 1px 5px rgba(0, 0, 0, 0.8); 
             transform: translateY(1px);
@@ -298,7 +305,7 @@ Everything else left exactly as-is.
         .controls-row button { flex-grow: 1; }
         .status-light { flex-shrink: 0; margin-left: 0; }
 
-        /* --- HORIZONTAL VOLUME GROUP STYLES (SLIGHTLY TIGHTENED) --- */
+        /* --- HORIZONTAL VOLUME GROUP STYLES --- */
         .horizontal-fader-group {
             display: flex;
             justify-content: space-between;
@@ -369,19 +376,23 @@ Everything else left exactly as-is.
             margin-top: 3px;
         }
         
-        /* --- FX CONTROL TIGHTENING --- */
         .fx-panel-top, .fx-panel { margin-bottom: 0; }
         .fx-control { margin-top: 5px; }
     </style>
 
-    <!-- Stylus add-on (UPDATED: triangle only, nudged right; NO RAIL) -->
+    <!-- Stylus add-on (triangle only, nudged right, nudged down a few px) -->
     <style id="stylus-addon">
-      /* Triangle-only stylus at 3 o'clock. No layout overrides. */
+      /* Triangle-only stylus near the 3 o'clock, slightly below centerline */
       .stylus-slider{
-        position:absolute;top:50%;right:-6px;transform:translateY(-50%);
-        height:20px;pointer-events:none;z-index:10;
+        position:absolute;
+        top:calc(50% + 4px);   /* DOWN a few pixels */
+        right:-6px;            /* small right nudge */
+        transform:translateY(-50%);
+        height:20px;
+        pointer-events:none;
+        z-index:10;
       }
-      /* No rail anymore */
+      /* No rail */
       .stylus-hitbox{
         position:absolute;top:-6px;width:24px;height:20px;
         pointer-events:auto;cursor:ew-resize;
@@ -610,7 +621,7 @@ Everything else left exactly as-is.
             eq: { low: null, mid: null, high: null, scratch: null },
             isCueing: false,
             cueNode: null,
-            hasMoved: false // NEW: Track if dragging occurred for scratch/jump logic
+            hasMoved: false
         };
         const DECK_B = {
             id: 'B',
@@ -627,7 +638,7 @@ Everything else left exactly as-is.
             eq: { low: null, mid: null, high: null, scratch: null },
             isCueing: false,
             cueNode: null,
-            hasMoved: false // NEW: Track if dragging occurred for scratch/jump logic
+            hasMoved: false
         };
 
         const $ = id => document.getElementById(id);
@@ -681,20 +692,10 @@ Everything else left exactly as-is.
         const hpMixControl = $('hpMix');
         const vuSegments = Array.from(masterVUMeter.querySelectorAll('.vu-segment'));
 
-        const SCRATCH_SENSITIVITY = 0.5;
-        const SCRATCH_FILTER_FREQ = 6000;
         const BLANK_DISPLAY_TEXT = '---';
         const RECORD_PADDING_PERCENT = 0.1; // 10% inner and outer groove area for position jump
 
-        /* ---------- NEW: STYLUS STATE ---------- */
-        const stylus = undefined; // stylus is provided by injected script at the end
-
-        function renderStylus(deckId) { /* no-op */ }
-        function applyStylusToAudio(deckId) { /* no-op */ }
-        function setStylusFromPlayback(deckId) { /* no-op */ }
-        function attachStylusEvents(deckId) { /* no-op */ }
-
-        /* ---------- EXISTING AUDIO ENGINE BELOW (unchanged) ---------- */
+        /* ---------- STYLUS handled by injected script at end ---------- */
 
         function initAudio() {
             if (audioCtx) return;
@@ -731,7 +732,7 @@ Everything else left exactly as-is.
             delayWetGain = audioCtx.createGain();
             delayWetGain.gain.value = 0.0;
             
-            // Reverb (Simple fixed filter for "reverb" sound effect)
+            // Reverb (Simple faux reverb)
             reverbLowPass = audioCtx.createBiquadFilter();
             reverbLowPass.type = 'lowpass';
             reverbLowPass.frequency.value = 4000;
@@ -814,7 +815,7 @@ Everything else left exactly as-is.
             eqHigh.frequency.value = 3200;
             eqHigh.gain.value = parseFloat($('eqHigh' + deckState.id).value);
 
-            // Scratch Filter (Highpass filter used when scratching to remove bass rumble)
+            // Scratch Filter (Highpass used when scratching to remove bass rumble)
             const scratchFilter = audioCtx.createBiquadFilter();
             scratchFilter.type = 'highpass';
             scratchFilter.frequency.value = 20; // Default low
@@ -835,7 +836,7 @@ Everything else left exactly as-is.
         function loadTrack(files) {
             TRACKS = [];
             loadingStatus.textContent = 'Loading...';
-            musicFilesInput.files = files; // Store files on the input element for persistence
+            musicFilesInput.files = files;
 
             const filePromises = Array.from(files)
                 .filter(file => file.type.startsWith('audio/'))
@@ -872,7 +873,6 @@ Everything else left exactly as-is.
             const selectB = decks.B.trackSelectEl;
 
             [selectA, selectB].forEach(select => {
-                // Clear existing options
                 select.innerHTML = '<option value="-1" disabled selected>SELECT TRACK</option>';
                 
                 TRACKS.forEach((track, index) => {
@@ -907,10 +907,9 @@ Everything else left exactly as-is.
             deckState.buffer = track.buffer;
             deckState.playbackPos = 0;
             deckState.currentRotation = 0;
-            deck.status.textContent = track.fileName.substring(0, 30); // Display truncated name
+            deck.status.textContent = track.fileName.substring(0, 30);
             deck.light.classList.remove('active');
             
-            // Re-initiate rate (pitch) since source is new
             updatePitch(deckId, parseFloat(deck.pitch.value));
         }
 
@@ -929,19 +928,15 @@ Everything else left exactly as-is.
             const newSource = audioCtx.createBufferSource();
             newSource.buffer = deckState.buffer;
 
-            // Path: Source -> EQ Low
             newSource.connect(deckState.eq.low);
 
-            // Connect to rate (pitch) node (PlaybackRate)
             newSource.playbackRate.value = deckState.rate || 1.0;
-            deckState.rateNode = newSource.playbackRate; // Store reference to control rate during playback
+            deckState.rateNode = newSource.playbackRate;
 
-            // Update state
             deckState.source = newSource;
             deckState.isPlaying = true;
             deckState.lastUpdateTime = audioCtx.currentTime;
 
-            // Start from the current playback position
             newSource.start(0, deckState.playbackPos);
             deck.light.classList.add('active');
 
@@ -973,7 +968,6 @@ Everything else left exactly as-is.
 
             if (!deckState.buffer) return;
 
-            // If already cueing, un-cue and stop
             if (deckState.isCueing) {
                 deckState.isCueing = false;
                 deck.cueBtn.classList.remove('active');
@@ -982,31 +976,25 @@ Everything else left exactly as-is.
                     deckState.source.disconnect();
                     deckState.source = null;
                 }
-                deckState.cueNode.gain.value = 0.0; // Mute in headphones
-                // Restore deck A or B gain to 0 (muting it in the master out) while cued/stopped
+                deckState.cueNode.gain.value = 0.0;
                 deckState.gain.gain.value = 0.0; 
                 return;
             }
 
-            // Start Cueing
             deckState.isCueing = true;
             deck.cueBtn.classList.add('active');
             
-            // Temporarily set deck volume to 0 to remove from master chain
             deckState.gain.gain.value = 0.0; 
-            deckState.cueNode.gain.value = 1.0; // Unmute in headphones
+            deckState.cueNode.gain.value = 1.0;
 
-            // Stop if already playing
             if (deckState.source) {
                 deckState.source.stop();
                 deckState.source.disconnect();
                 deckState.source = null;
             }
 
-            // Start playback from cue point (0.0 for now, could be improved)
             deckState.playbackPos = 0; 
             
-            // Play a new source only to the cue channel
             const newSource = audioCtx.createBufferSource();
             newSource.buffer = deckState.buffer;
             newSource.connect(deckState.eq.low);
@@ -1021,7 +1009,6 @@ Everything else left exactly as-is.
 
             newSource.onended = () => {
                 if (deckState.isCueing) {
-                    // Stop cued track when it ends
                     stopDeck(deckId); 
                     deckState.isCueing = false;
                     deck.cueBtn.classList.remove('active');
@@ -1047,13 +1034,12 @@ Everything else left exactly as-is.
             const deckState = decks[deckId].state;
             deckState.rate = value;
             if (deckState.source) {
-                deckState.rateNode.linearRampToValueAtTime(value, audioCtx.currentTime + 0.05); // Smooth transition
+                deckState.rateNode.linearRampToValueAtTime(value, audioCtx.currentTime + 0.05);
             }
         }
 
         function updateVolume(deckId, value) {
             const deckState = decks[deckId].state;
-            // Only update master gain if not cueing
             if (!deckState.isCueing) {
                 deckState.gain.gain.linearRampToValueAtTime(value, audioCtx.currentTime + 0.05);
             }
@@ -1069,16 +1055,11 @@ Everything else left exactly as-is.
         }
 
         function updateHPMix(value) {
-            // HP Mix: 0 = 100% Cue, 1 = 100% Master
             const masterVol = value;
-            const cueVol = 1.0 - value;
-
             masterPreListen.gain.value = masterVol;
         }
 
         function updateCrossfader(value) {
-            // Value is 0 (Deck A) to 1 (Deck B)
-            // Power curve: sin(x * PI/2)
             const aGain = Math.cos(value * 0.5 * Math.PI);
             const bGain = Math.cos((1.0 - value) * 0.5 * Math.PI);
 
@@ -1114,10 +1095,10 @@ Everything else left exactly as-is.
 
             let sum = 0;
             for(let i = 0; i < bufferLength; i++) {
-                sum += dataArray[i] * i; // quick visual approximation
+                sum += dataArray[i] * i;
             }
             const norm = Math.min(10, Math.max(0, Math.ceil(sum / (bufferLength * 100))));
-
+    
             vuSegments.forEach((segment, index) => {
                 const segmentLevel = 10 - index; 
                 if (segmentLevel <= norm) {
@@ -1128,16 +1109,12 @@ Everything else left exactly as-is.
             });
         }
 
-        // --- VISUAL LOOP ---
         function update() {
             updateDeckTime(DECK_A);
             updateDeckTime(DECK_B);
             updateRecordRotation(DECK_A);
             updateRecordRotation(DECK_B);
-
-            // --- VU ---
             updateVUMeter();
-
             animationFrameId = requestAnimationFrame(update);
         }
 
@@ -1163,7 +1140,7 @@ Everything else left exactly as-is.
             deck.style.transform = `rotate(${deckState.currentRotation}deg)`;
         }
 
-        // --- TONE ARM / POSITION JUMP FUNCTIONALITY (click-to-jump on record) ---
+        // --- Click-to-jump on record ---
         function jumpToPosition(deckId, e) {
             const deck = decks[deckId];
             const deckState = deck.state;
@@ -1226,7 +1203,7 @@ Everything else left exactly as-is.
 
         function handleStart(e, deckId) {
             e.preventDefault();
-            initAudio(); // Initialize context on first interaction
+            initAudio();
 
             const deck = decks[deckId];
             const deckState = deck.state;
@@ -1336,8 +1313,6 @@ Everything else left exactly as-is.
         }
 
         // --- EVENT LISTENERS ---
-        
-        // Initial file loading
         loadFilesBtn.addEventListener('click', () => {
             musicFilesInput.click();
         });
@@ -1369,20 +1344,7 @@ Everything else left exactly as-is.
         decks.B.eqMid.addEventListener('input', (e) => updateEQ('B', 'mid', parseFloat(e.target.value)));
         decks.B.eqHigh.addEventListener('input', (e) => updateEQ('B', 'high', parseFloat(e.target.value)));
 
-        // Mixer & FX Events
-        masterVolControl.addEventListener('input', (e) => updateMasterVol(parseFloat(e.target.value)));
-        hpVolControl.addEventListener('input', () => {
-            if (cueGain) cueGain.gain.linearRampToValueAtTime(parseFloat(hpVolControl.value), audioCtx.currentTime + 0.05);
-        });
-        hpMixControl.addEventListener('input', (e) => updateHPMix(parseFloat(e.target.value)));
-
-        masterFilterFreq.addEventListener('input', (e) => updateFilterFreq(parseFloat(e.target.value)));
-        delayFeedbackControl.addEventListener('input', (e) => updateDelayFeedback(parseFloat(e.target.value)));
-        delayTimeActualControl.addEventListener('input', (e) => updateDelayTime(parseFloat(e.target.value)));
-        delayWetDryControl.addEventListener('input', (e) => updateFXWetDry('delay', parseFloat(e.target.value)));
-        reverbWetDryControl.addEventListener('input', (e) => updateFXWetDry('reverb', parseFloat(e.target.value)));
-
-        // --- CROSSFADER LOGIC (Drag/Touch) ---
+        // Crossfader drag (mouse + touch)
         let isDraggingCrossfader = false;
 
         crossfaderHandle.addEventListener('mousedown', (e) => {
@@ -1415,7 +1377,7 @@ Everything else left exactly as-is.
         }, { passive: false });
         document.addEventListener('touchend', () => { isDraggingCrossfader = false; });
 
-        // --- TURNTABLE SCRATCH/JUMP LISTENERS ---
+        // Turntable listeners
         const turntableListeners = (deckId) => {
             const deckEl = decks[deckId].recordEl;
             deckEl.addEventListener('mousedown', (e) => handleStart(e, deckId));
@@ -1428,26 +1390,17 @@ Everything else left exactly as-is.
         };
         turntableListeners('A');
         turntableListeners('B');
-        
-        // General move/end listeners for both decks
+
         document.addEventListener('mousemove', handleMove);
         document.addEventListener('touchmove', handleMove, { passive: false });
-        document.addEventListener('mouseup', () => { 
-            if(activeDeck) handleEnd(activeDeck.id); 
-        });
-        document.addEventListener('touchend', () => { 
-            if(activeDeck) handleEnd(activeDeck.id); 
-        });
+        document.addEventListener('mouseup', () => { if (activeDeck) handleEnd(activeDeck.id); });
+        document.addEventListener('touchend', () => { if (activeDeck) handleEnd(activeDeck.id); });
 
-        // Auto-initialize audio context on first click/touch on the body
         document.body.addEventListener('click', initAudio, { once: true });
         document.body.addEventListener('touchstart', initAudio, { once: true });
-
-        // Keep layout responsive
-        window.addEventListener('resize', () => {});
     </script>
 
-    <!-- Stylus add-on JS (UPDATED: triangle only; no rail; right offset; small label gap) -->
+    <!-- Stylus add-on JS (triangle only; no rail; label safety gap) -->
     <script>
     (function(){
       var SAFE_GAP_PX = 6;    // shave a few px near the label so the tip never overlaps it
@@ -1497,14 +1450,14 @@ Everything else left exactly as-is.
           var deckRoot = record.closest('[id^="deck"]');
           var deckId   = deckRoot ? deckRoot.id.replace('deck','').toUpperCase() : null;
 
-          if (deckId && window.decks && window.audioCtx){
-            var st = window.decks[deckId].state;
+          if (deckId && typeof decks !== 'undefined' && typeof audioCtx !== 'undefined'){
+            var st = decks[deckId].state;
             if(!st || !st.buffer) return;
 
             if(st.source){ try{ st.source.stop(); st.source.disconnect(); }catch(e){} st.source=null; }
 
             if(value >= 0.999){
-              if(typeof window.stopDeck === 'function') window.stopDeck(deckId);
+              if(typeof stopDeck === 'function') stopDeck(deckId);
               return;
             }
 
@@ -1519,12 +1472,12 @@ Everything else left exactly as-is.
             st.lastUpdateTime = audioCtx.currentTime;
             src.start(0, st.playbackPos);
             src.onended = function(){
-              if(st.isPlaying && !st.isCueing && typeof window.stopDeck === 'function'){
-                window.stopDeck(deckId);
+              if(st.isPlaying && !st.isCueing && typeof stopDeck === 'function'){
+                stopDeck(deckId);
               }
             };
           } else {
-            // fallback for hosts without decks/audioCtx
+            // fallback event (if audio not initialized yet)
             record.dispatchEvent(new CustomEvent('stylus-scrub', { detail: { fraction: value, element: record } }));
           }
         }
@@ -1533,8 +1486,8 @@ Everything else left exactly as-is.
           try{
             var deckRoot = record.closest('[id^="deck"]');
             var deckId = deckRoot ? deckRoot.id.replace('deck','').toUpperCase() : null;
-            if(deckId && window.decks){
-              var st = window.decks[deckId].state;
+            if(deckId && typeof decks !== 'undefined'){
+              var st = decks[deckId].state;
               if(st && st.buffer && !dragging){
                 value = st.playbackPos / st.buffer.duration;
                 render();

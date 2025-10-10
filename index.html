@@ -158,7 +158,7 @@
     .stylus-slider{
       position:absolute;
       top:calc(50% + 4px);
-      right:-2px;            /* nudged left */
+      right:-2px;            /* nudged left to sit at 3 o'clock */
       transform:translateY(-50%);
       height:20px;
       pointer-events:none;
@@ -343,8 +343,8 @@
     let masterPreListen;
     let analyserNode;
 
-    const DECK_A = { id:'A', trackIndex:-1, buffer:null, source:null, gain:null, rate:1.0, isPlaying:false, playbackPos:0, lastUpdateTime:0, currentRotation:0, _rotLast:0, eq:{low:null,mid:null,high:null,scratch:null}, isCueing:false, cueNode:null, hasMoved:false, isDragging:false, startAngle:0, baseRotation:0, accumAngle:0, startPlaybackPos:0, manualRotate:false, rateNode:null };
-    const DECK_B = { id:'B', trackIndex:-1, buffer:null, source:null, gain:null, rate:1.0, isPlaying:false, playbackPos:0, lastUpdateTime:0, currentRotation:0, _rotLast:0, eq:{low:null,mid:null,high:null,scratch:null}, isCueing:false, cueNode:null, hasMoved:false, isDragging:false, startAngle:0, baseRotation:0, accumAngle:0, startPlaybackPos:0, manualRotate:false, rateNode:null };
+    const DECK_A = { id:'A', trackIndex:-1, buffer:null, source:null, gain:null, rate:1.0, isPlaying:false, playbackPos:0, lastUpdateTime:0, currentRotation:0, _rotLast:0, eq:{low:null,mid:null,high:null,scratch:null}, hasMoved:false, isDragging:false, startAngle:0, baseRotation:0, accumAngle:0, startPlaybackPos:0, manualRotate:false, rateNode:null };
+    const DECK_B = { id:'B', trackIndex:-1, buffer:null, source:null, gain:null, rate:1.0, isPlaying:false, playbackPos:0, lastUpdateTime:0, currentRotation:0, _rotLast:0, eq:{low:null,mid:null,high:null,scratch:null}, hasMoved:false, isDragging:false, startAngle:0, baseRotation:0, accumAngle:0, startPlaybackPos:0, manualRotate:false, rateNode:null };
 
     const $ = id => document.getElementById(id);
     const decks = {
@@ -372,18 +372,19 @@
 
     const BLANK_DISPLAY_TEXT = '---';
     const RECORD_PADDING_PERCENT = 0.1;
-    const SECS_PER_REV = 60/33.333; // ≈1.8s per full revolution (vinyl feel)
+    const SECS_PER_REV = 60/33.333; // ≈1.8s per full revolution
 
     function initAudio(){
       if (audioCtx) return;
       audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
+      // HP chain (kept for completeness; CUE no longer mutes the deck)
       cueGain = audioCtx.createGain();
       cueGain.gain.value = parseFloat(hpVolControl.value);
       cueGain.connect(audioCtx.destination);
 
       masterPreListen = audioCtx.createGain();
-      updateHPMix(parseFloat(hpMixControl.value)); // 0..1 to cue bus
+      updateHPMix(parseFloat(hpMixControl.value));
       masterPreListen.connect(cueGain);
 
       masterOutGain = audioCtx.createGain();
@@ -417,17 +418,16 @@
       reverbWetGain = audioCtx.createGain();
       reverbWetGain.gain.value = parseFloat(reverbWetDryControl.value);
 
-      // Delay FX chain
+      // FX
       delayNode.connect(feedbackGain);
       feedbackGain.connect(delayNode);
       delayNode.connect(delayWetGain);
 
-      // Simple "reverb-ish" slap
       masterFilter.connect(reverbDelay);
       reverbDelay.connect(reverbLowPass);
       reverbLowPass.connect(reverbWetGain);
 
-      // Master bus routing
+      // Master
       masterOutGain.connect(delayNode);
       masterOutGain.connect(masterFilter);
 
@@ -436,7 +436,7 @@
       reverbWetGain.connect(masterVolGain);
 
       masterVolGain.connect(audioCtx.destination);
-      masterVolGain.connect(masterPreListen); // feed HP bus pre-listen level
+      masterVolGain.connect(masterPreListen);
 
       analyserNode = audioCtx.createAnalyser();
       analyserNode.fftSize = 256;
@@ -460,7 +460,8 @@
       deckState.gain = audioCtx.createGain();
       deckState.gain.gain.value = parseFloat($('vol'+deckState.id).value);
       deckState.gain.connect(crossfaderGain);
-      // Also route to HP bus through cueNode when cue enabled
+
+      // (Optional HP path kept, not used by CUE anymore)
       deckState.cueNode = audioCtx.createGain();
       deckState.cueNode.gain.value = 0.0;
       deckState.cueNode.connect(masterPreListen);
@@ -514,7 +515,7 @@
       src.start(0, st.playbackPos);
       deck.light.classList.add('active');
 
-      src.onended = () => { if (st.isPlaying && !st.isCueing) stopDeck(deckId); };
+      src.onended = () => { if (st.isPlaying) stopDeck(deckId); };
     }
     window.playDeck = playDeck;
 
@@ -526,34 +527,25 @@
     }
     window.stopDeck = stopDeck;
 
+    // CUE now: restart from 0 and play on MASTER; does NOT mute deck
     function cueDeck(deckId){
       const deck = decks[deckId], st = deck.state;
       if (!st.buffer) return;
 
-      if (st.isCueing){
-        st.isCueing=false; deck.cueBtn.classList.remove('active');
-        if (st.source){ st.source.stop(); st.source.disconnect(); st.source=null; }
-        st.cueNode.gain.value=0.0; st.gain.gain.value=0.0; return;
-      }
+      // Toggle button state only (no routing changes)
+      const active = deck.cueBtn.classList.toggle('active');
 
-      st.isCueing=true; deck.cueBtn.classList.add('active');
-      st.gain.gain.value=0.0; st.cueNode.gain.value=1.0;
-
+      st.playbackPos = 0;
       if (st.source){ st.source.stop(); st.source.disconnect(); st.source=null; }
-      st.playbackPos=0;
 
       const src = audioCtx.createBufferSource();
       src.buffer=st.buffer; src.connect(st.eq.low);
       src.playbackRate.value = st.rate || 1.0; st.rateNode = src.playbackRate;
       st.source=src; st.isPlaying=true; st.lastUpdateTime=audioCtx.currentTime; st._rotLast=0;
       src.start(0, st.playbackPos);
+      deck.light.classList.add('active');
 
-      src.onended = () => {
-        if (st.isCueing){
-          stopDeck(deckId);
-          st.isCueing=false; deck.cueBtn.classList.remove('active'); st.cueNode.gain.value=0.0;
-        }
-      };
+      src.onended = () => { if (st.isPlaying) stopDeck(deckId); };
     }
 
     function updateDeckTime(st){
@@ -570,12 +562,12 @@
     }
 
     function updatePitch(deckId, v){ const st = decks[deckId].state; st.rate = v; if (st.source && st.rateNode) st.rateNode.linearRampToValueAtTime(v, audioCtx.currentTime + .05); }
-    function updateVolume(deckId, v){ const st = decks[deckId].state; if (!st.isCueing) st.gain.gain.linearRampToValueAtTime(v, audioCtx.currentTime + .05); }
+    function updateVolume(deckId, v){ const st = decks[deckId].state; st.gain.gain.linearRampToValueAtTime(v, audioCtx.currentTime + .05); }
     function updateEQ(deckId, type, v){ const st = decks[deckId].state; st.eq[type].gain.linearRampToValueAtTime(v, audioCtx.currentTime + .05); }
     function updateMasterVol(v){ masterVolGain.gain.linearRampToValueAtTime(v, audioCtx.currentTime + .05); }
-    function updateHPMix(v){ masterPreListen.gain.value = v; } // 0=cue off, 1=full feed to HP bus
+    function updateHPMix(v){ masterPreListen.gain.value = v; } // still functional but CUE no longer depends on it
+
     function updateCrossfader(value){
-      // Equal-power law
       const aGain = Math.cos(value * 0.5 * Math.PI);
       const bGain = Math.cos((1.0 - value) * 0.5 * Math.PI);
       crossfaderGainA.gain.value = aGain;
@@ -604,7 +596,7 @@
 
     function updateRecordRotation(st){
       if (!st.buffer) return;
-      if (st.isDragging || st.manualRotate) return; // user controlling platter
+      if (st.isDragging || st.manualRotate) return;
       const now = performance.now() * 0.001;
       if (!st._rotLast) st._rotLast = now;
       const dt = now - st._rotLast;
@@ -614,7 +606,7 @@
       if (st.isPlaying) rate = st.rateNode ? st.rateNode.value : 1.0;
 
       if (rate !== 0){
-        const rotationSpeedDegPerSec = rate * 360; // visual spin while playing (1x -> 1 rev/sec)
+        const rotationSpeedDegPerSec = rate * 360;
         st.currentRotation = (st.currentRotation + rotationSpeedDegPerSec * dt);
         const deck = decks[st.id];
         if (deck && deck.recordEl){
@@ -623,18 +615,15 @@
       }
     }
 
-    // Utility: angle between center and pointer (degrees)
     function pointerAngleDeg(el, clientX, clientY){
       const rect = el.getBoundingClientRect();
       const cx = rect.left + rect.width/2;
       const cy = rect.top  + rect.height/2;
       const dx = clientX - cx;
       const dy = clientY - cy;
-      const a = Math.atan2(dy, dx) * 180/Math.PI; // -180..180, 0 at +X
-      return a;
+      return Math.atan2(dy, dx) * 180/Math.PI;
     }
     function shortestDelta(a, b){
-      // delta from a -> b in degrees, normalized to [-180, 180]
       let d = b - a;
       while (d > 180) d -= 360;
       while (d < -180) d += 360;
@@ -651,7 +640,7 @@
       const radius  = rect.width/2;
 
       const clientX = e.clientX || (e.touches && e.touches[0] ? e.touches[0].clientX : e.clientX);
-      const clientY = e.clientY || (e.touches && e.touches[0] ? e.touches[0].clientY : e.clientY);
+      const clientY = e.clientY || (e.touches && e.touches[0] ? e.touches[0] ? e.touches[0].clientY : e.clientY : e.clientY);
 
       const dx = clientX - centerX, dy = clientY - centerY;
       const distance = Math.sqrt(dx*dx + dy*dy);
@@ -672,8 +661,8 @@
 
       st.source = src; st.isPlaying = true; st.lastUpdateTime = audioCtx.currentTime; st._rotLast = 0;
       src.start(0, st.playbackPos);
-      src.onended = () => { if (st.isPlaying && !st.isCueing) stopDeck(deckId); };
-      if (!st.isCueing) deck.light.classList.add('active');
+      deck.light.classList.add('active');
+      src.onended = () => { if (st.isPlaying) stopDeck(deckId); };
     }
 
     let activeDeck = null;
@@ -689,7 +678,6 @@
 
       st.isDragging = true; st.manualRotate = true; activeDeck = deck; st.hasMoved=false;
 
-      // Stop sound while manipulating platter (quiet scratch feel)
       if (st.source){ st.source.stop(); st.source.disconnect(); st.source=null; }
       st.isPlaying = false;
       deck.light.classList.remove('active');
@@ -716,17 +704,12 @@
       st.hasMoved = true;
 
       const nowAngle = pointerAngleDeg(el, cx, cy);
-      const dAng = shortestDelta(st.startAngle, nowAngle); // change since drag began (bounded)
-      // Accumulate across many spins: compute step vs last frame
-      // For stable accumulation, update startAngle to now for next frame
       st.accumAngle += shortestDelta(st.startAngle, nowAngle);
       st.startAngle = nowAngle;
 
-      // Visual platter rotation: unlimited turns
       st.currentRotation = st.baseRotation + st.accumAngle;
       el.style.transform = `rotate(${st.currentRotation}deg)`;
 
-      // Map platter angle to time offset (≈1.8s per 360°)
       const dSecs = (st.accumAngle / 360) * SECS_PER_REV;
       st.playbackPos = Math.max(0, Math.min((st.startPlaybackPos + dSecs), st.buffer.duration));
     }
@@ -737,7 +720,6 @@
 
       st.isDragging=false; st.manualRotate=false;
 
-      // Resume from the new position
       if (st.buffer){
         if (st.source){ st.source.stop(); st.source.disconnect(); st.source=null; }
         const src = audioCtx.createBufferSource();
@@ -748,7 +730,7 @@
         src.start(0, st.playbackPos);
         deck.light.classList.add('active');
 
-        src.onended = () => { if (st.isPlaying && !st.isCueing) stopDeck(deckId); };
+        src.onended = () => { if (st.isPlaying) stopDeck(deckId); };
       }
     }
 
@@ -802,7 +784,7 @@
       document.addEventListener('DOMContentLoaded', ()=>{ setTimeout(applyScale, 0); });
     })();
 
-    /* ---------------- File/Folder loading (robust desktop/mobile order) ---------------- */
+    /* ---------------- File/Folder loading ---------------- */
     function isMobileDevice(){
       const ua = navigator.userAgent || '';
       const uad = (navigator.userAgentData && navigator.userAgentData.mobile) ? true : false;
@@ -917,7 +899,6 @@
       if (loaded > 0) {
         populateTrackSelects();
 
-        // Auto-load first two
         const aIdx = 0;
         const bIdx = (TRACKS.length > 1) ? 1 : 0;
         decks.A.trackSelectEl.value = String(aIdx);
@@ -947,7 +928,6 @@
       const leftCSS = value * railCSSWidth - HANDLE_HALF;
       crossfaderHandle.style.left = `${leftCSS}px`;
     }
-    // init center
     window.addEventListener('load', ()=> setCrossfaderUI(.5));
 
     crossfaderHandle.addEventListener('mousedown', (e)=>{ e.preventDefault(); isDraggingX=true; });
@@ -1071,11 +1051,7 @@
             st.rateNode = src.playbackRate;
             st.source = src; st.isPlaying = true; st.lastUpdateTime = audioCtx.currentTime; st._rotLast = 0;
             src.start(0, st.playbackPos);
-            src.onended = function(){
-              if (st.isPlaying && !st.isCueing && typeof window.stopDeck === 'function'){
-                window.stopDeck(deckId);
-              }
-            };
+            src.onended = function(){ if (st.isPlaying && typeof window.stopDeck === 'function'){ window.stopDeck(deckId); } };
             var deck = window.decks[deckId];
             if (deck) deck.light.classList.add('active');
           } else {

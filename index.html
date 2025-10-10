@@ -1,952 +1,1520 @@
 <!DOCTYPE html>
 <!--
-scratcher22-scale-fill-pinch.html
-- No scale UI. Works with native window resize + pinch/zoom.
-- Auto scales to fill screen (up or down) without clipping.
-- Crossfader reaches full width; handle lowered a few px.
-- Stylus: triangle-only at ~3 o’clock, no rail.
+/mnt/data/scratcher16.html  (FULL FILE)
+Purpose: Adds a horizontal stylus at 3 o'clock on each record (triangle ▼). Drag scrubs from rim → label; end stops.
+No layout/styles removed. Only additive CSS/JS blocks injected.
+Created by Scott Russo.
 -->
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <!-- Allow native pinch-zoom; no blocking -->
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Scratcher - Pro Turntable Controller</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@300;600;900&display=swap');
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Scratcher - Pro Turntable Controller</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@300;600;900&display=swap');
 
-    :root{
-      --bg-dark:#0F172A;      /* slate-900 */
-      --deck-bg:#1E293B;      /* slate-800 */
-      --mixer-color:#334155;  /* slate-700 */
-      --fader-rail:#475569;   /* slate-600 */
-      --accent:#38BDF8;       /* sky-400 */
-      --accent-glow:0 0 8px rgba(56,189,248,.6);
-      --record-surface:#020617;
-      --control-label:#94A3B8;
-      --shadow-dark:#000;
-      --box-shadow-raised:10px 10px 20px var(--shadow-dark), -5px -5px 10px #243445;
-      --box-shadow-inset:inset 3px 3px 6px var(--shadow-dark), inset -3px -3px 6px #243445;
-    }
+        :root {
+            --bg-dark: #0F172A; /* Slate 900 */
+            --deck-bg: #1E293B; /* Slate 800 */
+            --mixer-color: #334155; /* Slate 700 */
+            --fader-rail: #475569; /* Slate 600 */
+            --accent: #38BDF8; /* Sky 400 */
+            --accent-glow: 0 0 8px rgba(56, 189, 248, 0.6);
+            --record-surface: #020617; /* Blue-Black */
+            --control-label: #94A3B8;
 
-    html, body { height:100%; }
-    body{
-      margin:0;
-      background:var(--bg-dark);
-      color:#E2E8F0;
-      font-family:'Inter', sans-serif;
-      overflow:hidden;                 /* no page scroll; the app scales to fit */
-      display:flex;
-      align-items:center;              /* center the app */
-      justify-content:center;
-      /* Let browsers handle pinch-zoom */
-      touch-action: auto;
-    }
+            /* --- MODERN AESTHETIC SHADOWS (From v3) --- */
+            --shadow-dark: #000000;
+            --box-shadow-raised: 10px 10px 20px var(--shadow-dark), -5px -5px 10px #243445; 
+            --box-shadow-inset: inset 3px 3px 6px var(--shadow-dark), inset -3px -3px 6px #243445;
+        }
 
-    /* Scale shell gets transform: scale(...) */
-    #app-scale-shell{
-      position:relative;
-      transform-origin: top left;
-      will-change: transform, width, height;
-    }
+        /* --- BASE & LAYOUT (ANCHORED TO TOP) --- */
+        body {
+            height: 100vh;
+            width: 100vw;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start; /* PUSH EVERYTHING TO THE TOP */
+            align-items: center;
+            background-color: var(--bg-dark);
+            color: #E2E8F0;
+            font-family: 'Inter', sans-serif;
+            touch-action: manipulation;
+            overflow: hidden; 
+            padding-top: 0; 
+        }
 
-    /* Fixed desktop layout kept intact */
-    .dj-container{
-      width:1200px; max-width:1200px; min-width:1200px;
-      height:auto;
-      display:flex; flex-direction:column;
-      padding:8px;
-      background:linear-gradient(145deg,#101824,#0d131f);
-      border-radius:20px;
-      box-shadow:0 20px 60px rgba(0,0,0,.9), 0 0 1px #1E293B;
-      border:1px solid #1E293B;
-      overflow:visible;
-    }
+        .dj-container {
+            width: 95vw; 
+            max-width: 1200px; 
+            height: 100vh; /* MAXIMIZED HEIGHT */
+            max-height: 900px; 
+            display: flex;
+            flex-direction: column;
+            padding: 8px; /* SLIGHTLY REDUCED OVERALL PADDING */
+            background: linear-gradient(145deg, #101824, #0d131f);
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.9), 0 0 1px #1E293B;
+            overflow-y: hidden;
+            overflow-x: hidden;
+            border: 1px solid #1e293b;
+        }
 
-    .main-mix{ display:flex; flex-grow:1; min-height:0; }
-    .app-title{ font-family:'Orbitron', sans-serif; color:#fff; font-size:1.5rem; font-weight:700; }
-    .fader-label, .status-info{ color:var(--control-label); font-size:10px; font-weight:600; text-transform:uppercase; letter-spacing:.5px; }
+        .main-mix {
+            display: flex;
+            flex-grow: 1;
+            min-height: 0; 
+        }
+        
+        .app-title { font-family: 'Orbitron', sans-serif; color: white; font-size: 1.5rem; font-weight: 700; }
+        .fader-label, .status-info { color: var(--control-label); font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
 
-    /* File loader */
-    #fileLoader{
-      display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap;
-      padding:4px 16px; margin-bottom:0;
-      background:var(--mixer-color); border-radius:12px;
-      box-shadow:inset 0 0 10px rgba(0,0,0,.5); border:1px solid #475569;
-    }
-    .file-loader-group{ display:flex; align-items:center; gap:10px; }
-    #loadingStatus{ order:3; width:100%; margin-top:5px; text-align:right; }
 
-    /* Track display */
-    .track-display-window{
-      width:100%; height:30px; margin-bottom:5px; padding:4px 6px;
-      background:#020617; border:3px solid var(--accent); border-radius:6px;
-      display:flex; align-items:center; justify-content:center;
-      color:var(--accent); font-family:'Orbitron', monospace; font-size:13px;
-      box-shadow:var(--accent-glow), inset 0 0 15px rgba(0,0,0,.8);
-    }
+        /* --- FILE LOADER STYLING (TIGHTENED) --- */
+        #fileLoader {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            padding: 4px 16px; /* REDUCED VERTICAL PADDING */
+            margin-bottom: 0px; 
+            background: var(--mixer-color); 
+            border-radius: 12px;
+            box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.5); 
+            border: 1px solid #475569;
+        }
+        .file-loader-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        #loadingStatus {
+            order: 3; 
+            width: 100%;
+            margin-top: 5px;
+            text-align: right;
+        }
 
-    /* Selector */
-    .track-select{
-      width:100%;
-      background:#475569; color:#111827; border:none; border-radius:8px;
-      padding:8px 30px 8px 10px; font-size:12px; font-weight:900; text-align:left;
-      -webkit-appearance:none; -moz-appearance:none; appearance:none;
-      background-image:url('data:image/svg+xml;charset=US-ASCII,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22292.4%22 height=%22292.4%22%3E%3Cpath fill=%22%23111827%22 d=%22M287 69.4a17.6 17.6 0 0 0-13.6-6.4H19a17.6 17.6 0 0 0-13.6 6.4 17.6 17.6 0 0 0 0 24.3l127.3 127.9c5.6 5.6 13.3 8.2 21.3 8.2s15.7-2.6 21.3-8.2L287 93.7a17.9 17.9 0 0 0 0-24.3z%22/%3E%3C/svg%3E');
-      background-repeat:no-repeat; background-position:right 10px center; background-size:10px auto;
-    }
-    .track-select option{ color:#fff; background:#1E293B; }
 
-    /* Decks & mixer */
-    .turntable{
-      padding:15px; background:var(--deck-bg); border-radius:12px;
-      box-shadow:var(--box-shadow-raised), inset 0 0 15px rgba(0,0,0,.3);
-      margin:0 8px; flex-grow:1; display:flex; flex-direction:column;
-    }
-    .mixer{
-      padding:15px 10px; background:var(--mixer-color); margin:0 8px; border-radius:12px;
-      box-shadow:var(--box-shadow-raised); display:flex; flex-direction:column; gap:5px;
-    }
-    .deck-controls{ flex-grow:1; display:flex; flex-direction:column; justify-content:space-around; }
+        /* --- TRACK DISPLAY (Above Record - From v3) --- */
+        .track-display-window {
+            width: 100%;
+            height: 30px;
+            margin-bottom: 5px; 
+            padding: 4px 6px; 
+            background-color: #020617; 
+            border: 3px solid var(--accent); 
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--accent); 
+            font-family: 'Orbitron', monospace;
+            font-size: 13px;
+            box-shadow: var(--accent-glow), inset 0 0 15px rgba(0, 0, 0, 0.8); 
+        }
+        
+        /* --- SELECT TRACK DROPDOWN READABILITY FIX (From v3) --- */
+        .track-select {
+            width: 100%;
+            background-color: #475569; 
+            color: #111827; /* Dark text for contrast */
+            border: none;
+            border-radius: 8px;
+            padding: 8px 30px 8px 10px;
+            font-size: 12px;
+            font-weight: 900; 
+            text-align: left;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23111827%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13.6-6.4H19a17.6%2017.6%200%200%200-13.6%206.4%2017.6%2017.6%200%200%200%200%2024.3l127.3%20127.9c5.6%205.6%2013.3%208.2%2021.3%208.2s15.7-2.6%2021.3-8.2L287%2093.7a17.9%2017.9%200%200%200%200-24.3z%22%2F%3E%3C%2Fsvg%3E');
+            background-repeat: no-repeat;
+            background-position: right 10px center;
+            background-size: 10px auto;
+        }
+        .track-select option {
+            color: white; 
+            background-color: #1E293B;
+        }
 
-    /* Record */
-    .record-plate{
-      width:230px; height:230px; max-width:95%; max-height:95%;
-      position:relative; align-self:center; margin-top:5px; margin-bottom:10px;
-    }
-    .record{
-      position:absolute; inset:0; border-radius:50%; background:var(--record-surface);
-      border:4px solid #475569; box-shadow:0 0 20px rgba(0,0,0,.9) inset, 0 8px 15px rgba(0,0,0,.6);
-      cursor:grab;
-    }
-    .record-label{
-      position:absolute; top:50%; left:50%; transform:translate(-50%, -50%);
-      width:30%; height:30%; border-radius:50%; background:#EF4444; color:#fff;
-      display:flex; align-items:center; justify-content:center;
-      font-family:'Orbitron', sans-serif; font-size:1.5rem; font-weight:900;
-      box-shadow:0 0 5px rgba(0,0,0,.5) inset;
-    }
-    .cue-mark{ position:absolute; top:5%; left:50%; transform:translateX(-50%); width:8%; height:8%; border-radius:50%; background:#FBBF24; }
 
-    /* Sliders, knobs */
-    input[type="range"]{ box-shadow:var(--box-shadow-inset); height:15px; margin:0; padding:0; }
-    input[type="range"]::-webkit-slider-thumb{
-      box-shadow:0 3px 6px rgba(0,0,0,.8), 0 0 1px #fff, inset 1px 1px 3px rgba(255,255,255,.4);
-      border:1px solid #fff;
-    }
+        /* --- DECKS & MIXER --- */
+        .turntable {
+            padding: 15px; 
+            background-color: var(--deck-bg);
+            border-radius: 12px;
+            box-shadow: var(--box-shadow-raised), inset 0 0 15px rgba(0, 0, 0, 0.3); /* v3 Look */
+            margin: 0 8px;
+            flex-grow: 1; 
+            display: flex; 
+            flex-direction: column; 
+        }
+        .mixer {
+            padding: 15px 10px;
+            background-color: var(--mixer-color);
+            margin: 0 8px;
+            border-radius: 12px;
+            box-shadow: var(--box-shadow-raised); /* v3 Look */
+            display: flex; 
+            flex-direction: column; 
+            gap: 5px; /* REDUCED GAP FOR TIGHTER FIT */
+        }
+        .deck-controls {
+            flex-grow: 1; 
+            display: flex;
+            flex-direction: column;
+            justify-content: space-around; 
+        }
+        
+        /* --- TURNTABLE PLATE STYLES --- */
+        .record-plate {
+            width: 230px; 
+            height: 230px; 
+            max-width: 95%; 
+            max-height: 95%;
+            position: relative;
+            align-self: center; 
+            margin-top: 5px; 
+            margin-bottom: 10px; 
+        }
+        .record {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            background-color: var(--record-surface); 
+            border: 4px solid #475569; 
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.9) inset, 0 8px 15px rgba(0, 0, 0, 0.6); 
+            cursor: grab; 
+        }
+        .record-label {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 30%;
+            height: 30%;
+            border-radius: 50%;
+            background-color: #EF4444; 
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.5rem;
+            font-weight: 900;
+            box-shadow: 0 0 5px rgba(0, 0, 0, 0.5) inset;
+        }
+        .cue-mark {
+            position: absolute;
+            top: 5%;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 8%;
+            height: 8%;
+            border-radius: 50%;
+            background-color: #FBBF24; 
+        }
 
-    .crossfader-rail{
-      position:relative; height:15px; background:var(--fader-rail); border-radius:8px;
-      width:100%; margin-top:5px; box-shadow:var(--box-shadow-inset);
-    }
-    .crossfader-handle{
-      position:absolute; top:-2px; /* lowered a few px */
-      width:30px; height:25px; background:#E2E8F0; border:1px solid #fff; border-radius:4px;
-      cursor:grab; transition:left .05s ease-out;
-      box-shadow:0 3px 6px rgba(0,0,0,.8), 0 0 1px #fff, inset 1px 1px 3px rgba(255,255,255,.4);
-    }
-    .crossfader-handle:active{ cursor:grabbing; box-shadow:inset 0 1px 3px rgba(0,0,0,.5); }
+        /* --- FADERS & KNOBS --- */
+        input[type="range"] {
+            box-shadow: var(--box-shadow-inset);
+            height: 15px; 
+            margin: 0;
+            padding: 0;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            box-shadow: 0 3px 6px rgba(0, 0, 0, 0.8), 
+                        0 0 1px #fff, 
+                        inset 1px 1px 3px rgba(255, 255, 255, 0.4); 
+            border: 1px solid #fff;
+        }
+        
+        /* --- CROSSFADER SPECIFIC STYLES --- */
+        .crossfader-rail {
+            position: relative; 
+            height: 15px; 
+            background-color: var(--fader-rail); 
+            border-radius: 8px;
+            width: 100%;
+            margin-top: 5px; 
+            box-shadow: var(--box-shadow-inset); 
+        }
+        .crossfader-handle {
+            position: absolute;
+            top: -5px; 
+            width: 30px; 
+            height: 25px; 
+            background-color: #E2E8F0; 
+            border: 1px solid #fff; 
+            border-radius: 4px;
+            cursor: grab;
+            transition: left 0.05s ease-out; 
+            box-shadow: 0 3px 6px rgba(0, 0, 0, 0.8), 
+                        0 0 1px #fff, 
+                        inset 1px 1px 3px rgba(255, 255, 255, 0.4); 
+        }
+        .crossfader-handle:active {
+            cursor: grabbing;
+            box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5); 
+        }
 
-    .btn{
-      padding:8px 12px; border-radius:6px; font-weight:900; color:#111827; text-transform:uppercase; font-size:11px;
-      box-shadow:0 3px 5px rgba(0,0,0,.8); border:1px solid rgba(255,255,255,.1); transition:all .1s;
-    }
-    .play-btn{ background:#10B981; } .stop-btn{ background:#EF4444; } .cue-btn{ background:#FBBF24; }
-    .btn:active{ box-shadow:inset 0 1px 5px rgba(0,0,0,.8); transform:translateY(1px); }
-    .cue-btn.active{ background:#D97706; box-shadow:inset 0 1px 5px rgba(0,0,0,.8); transform:translateY(1px); }
+        /* --- PLAY/CUE/STOP BUTTON STYLES (New/Updated) --- */
+        .btn {
+            padding: 8px 12px; 
+            border-radius: 6px; 
+            font-weight: 900;
+            color: #111827; 
+            text-transform: uppercase;
+            font-size: 11px;
+            box-shadow: 0 3px 5px rgba(0, 0, 0, 0.8); 
+            border: 1px solid rgba(255, 255, 255, 0.1); 
+            transition: all 0.1s;
+        }
 
-    .controls-row{ display:flex; align-items:center; gap:8px; }
-    .controls-row button{ flex-grow:1; }
-    .status-light{ flex-shrink:0; margin-left:0; }
+        /* Color Coding */
+        .play-btn { background-color: #10B981; }
+        .stop-btn { background-color: #EF4444; }
+        .cue-btn  { background-color: #FBBF24; }
 
-    .horizontal-fader-group{ display:flex; justify-content:space-between; align-items:flex-end; width:100%; margin-bottom:0; }
-    .master-hp-fader-group{ display:flex; justify-content:space-around; align-items:center; width:100%; margin-bottom:0; }
-    .fader-control-horizontal{ display:flex; flex-direction:column; align-items:center; width:30%; }
-    .fader-control-horizontal input[type="range"]{ width:100%; margin-top:5px; }
+        /* Active/Pressed States */
+        .btn:active {
+            box-shadow: inset 0 1px 5px rgba(0, 0, 0, 0.8); 
+            transform: translateY(1px);
+        }
+        .cue-btn.active {
+            background-color: #D97706;
+            box-shadow: inset 0 1px 5px rgba(0, 0, 0, 0.8); 
+            transform: translateY(1px);
+        }
+        
+        .controls-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .controls-row button { flex-grow: 1; }
+        .status-light { flex-shrink: 0; margin-left: 0; }
 
-    .master-controls-group{ display:flex; flex-direction:column; align-items:center; justify-content:flex-end; gap:5px; margin-bottom:0; }
-    .vu-meter{ display:flex; flex-direction:column-reverse; width:15px; height:50px; background:#020617; border:1px solid #475569; border-radius:4px; padding:2px; }
-    .vu-segment{ height:10%; margin-bottom:1px; background:#38BDF8; opacity:.2; transition:opacity .1s; }
-    .vu-segment.on{ opacity:1; }
-    .vu-segment.yellow{ background:#FACC15; }
-    .vu-segment.red{ background:#EF4444; }
-    .hp-mix-control{ width:100%; margin-top:0; display:flex; flex-direction:column; align-items:center; }
-    .hp-mix-labels{ width:100%; display:flex; justify-content:space-between; font-size:8px; color:var(--control-label); margin-top:3px; }
+        /* --- HORIZONTAL VOLUME GROUP STYLES (SLIGHTLY TIGHTENED) --- */
+        .horizontal-fader-group {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end; 
+            width: 100%;
+            margin-bottom: 0; 
+        }
+        .master-hp-fader-group {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            width: 100%;
+            margin-bottom: 0; 
+        }
+        .fader-control-horizontal {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 30%; 
+        }
+        .fader-control-horizontal input[type="range"] {
+            width: 100%;
+            margin-top: 5px;
+        }
 
-    .fx-panel-top, .fx-panel{ margin-bottom:0; }
-    .fx-control{ margin-top:5px; }
-  </style>
+        /* --- VU METER STYLES --- */
+        .master-controls-group {
+            display: flex;
+            flex-direction: column; 
+            align-items: center;
+            justify-content: flex-end; 
+            gap: 5px; 
+            margin-bottom: 0; 
+        }
+        .vu-meter {
+            display: flex;
+            flex-direction: column-reverse; 
+            width: 15px;
+            height: 50px; 
+            background-color: #020617;
+            border: 1px solid #475569;
+            border-radius: 4px;
+            padding: 2px;
+        }
+        .vu-segment {
+            height: 10%;
+            margin-bottom: 1px;
+            background-color: #38BDF8; 
+            opacity: 0.2; 
+            transition: opacity 0.1s;
+        }
+        .vu-segment.on { opacity: 1; }
+        .vu-segment.yellow { background-color: #FACC15; }
+        .vu-segment.red    { background-color: #EF4444; }
+        .hp-mix-control {
+            width: 100%;
+            margin-top: 0; 
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .hp-mix-labels {
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            font-size: 8px;
+            color: var(--control-label);
+            margin-top: 3px;
+        }
+        
+        /* --- FX CONTROL TIGHTENING --- */
+        .fx-panel-top, .fx-panel { margin-bottom: 0; }
+        .fx-control { margin-top: 5px; }
+    </style>
 
-  <!-- Stylus add-on (triangle only, slightly below 3 o’clock) -->
-  <style id="stylus-addon">
-    .stylus-slider{
-      position:absolute;
-      top:calc(50% + 4px);   /* nudge DOWN a few px */
-      right:-6px;            /* slight right nudge */
-      transform:translateY(-50%);
-      height:20px;
-      pointer-events:none;
-      z-index:10;
-    }
-    /* no rail line */
-    .stylus-hitbox{
-      position:absolute; top:-6px; width:24px; height:20px;
-      pointer-events:auto; cursor:ew-resize;
-    }
-    .stylus-handle{
-      position:absolute; left:0; top:0; width:0; height:0;
-      border-left:8px solid transparent; border-right:8px solid transparent;
-      border-bottom:12px solid #38BDF8;
-      filter:drop-shadow(0 0 2px rgba(56,189,248,.6));
-    }
-  </style>
+    <!-- Stylus add-on (non-destructive) -->
+    <style id="stylus-addon">
+      /* No overrides to existing layout. Just the stylus UI at 3 o'clock. */
+      .stylus-slider{position:absolute;top:50%;right:0;transform:translateY(-50%);
+        height:20px;pointer-events:none;z-index:10;}
+      .stylus-rail{position:absolute;left:0;right:0;top:8px;height:4px;
+        background:rgba(100,116,139,.9);border-radius:2px;box-shadow:inset 0 0 4px rgba(0,0,0,.6);}
+      .stylus-hitbox{position:absolute;top:-2px;width:24px;height:16px;pointer-events:auto;cursor:ew-resize;}
+      .stylus-handle{position:absolute;left:0;top:0;width:0;height:0;border-left:8px solid transparent;
+        border-right:8px solid transparent;border-bottom:12px solid #38BDF8;filter:drop-shadow(0 0 2px rgba(56,189,248,.6));}
+    </style>
 </head>
 <body>
-  <!-- SCALE SHELL: auto scales to fill viewport (can also be pinched/zoomed by the browser) -->
-  <div id="app-scale-shell">
     <div class="dj-container">
 
-      <div id="fileLoader">
-        <h1 class="app-title">SCRATCHER</h1>
-        <div class="file-loader-group">
-          <label for="musicFiles" class="text-sm font-semibold text-sky-400">LOAD YOUR MUSIC FOLDERS:</label>
-          <input type="file" id="musicFiles" multiple webkitdirectory directory style="display:none;">
-          <button id="loadFilesBtn" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-1 px-3 rounded text-xs transition">Select Folders</button>
-        </div>
-        <div id="loadingStatus" class="text-xs mt-2 text-gray-300 w-full text-right">0 files loaded.</div>
-      </div>
-
-      <div class="main-mix">
-        <div class="turntable" id="deckA">
-          <div class="eq-section">
-            <div class="eq-knob"><label class="eq-label">LOW</label><input type="range" id="eqLowA" min="-12" max="12" step="0.1" value="0.0"></div>
-            <div class="eq-knob"><label class="eq-label">MID</label><input type="range" id="eqMidA" min="-12" max="12" step="0.1" value="0.0"></div>
-            <div class="eq-knob"><label class="eq-label">HIGH</label><input type="range" id="eqHighA" min="-12" max="12" step="0.1" value="0.0"></div>
-          </div>
-
-          <div class="track-display-window" id="statusA">---</div>
-
-          <div class="record-plate">
-            <div class="record" id="recordA">
-              <div class="record-label">A</div>
-              <div class="cue-mark"></div>
+        <div id="fileLoader">
+            <h1 class="app-title">SCRATCHER</h1>
+            <div class="file-loader-group">
+                <label for="musicFiles" class="text-sm font-semibold text-sky-400">
+                    LOAD YOUR MUSIC FOLDERS:
+                </label>
+                <input type="file" id="musicFiles" multiple webkitdirectory directory style="display: none;">
+                <button id="loadFilesBtn" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-1 px-3 rounded text-xs transition duration-150">
+                    Select Folders
+                </button>
             </div>
-          </div>
-
-          <div class="deck-controls">
-            <select class="track-select" id="trackSelectA"><option value="-1" disabled selected>SELECT TRACK</option></select>
-            <div class="controls-row">
-              <button class="btn play-btn" id="playA">PLAY</button>
-              <button class="btn cue-btn" id="cueA">CUE</button>
-              <button class="btn stop-btn" id="stopA">STOP</button>
-              <div class="status-light" id="lightA"></div>
+            <div id="loadingStatus" class="text-xs mt-2 text-gray-300 w-full text-right">
+                0 files loaded.
             </div>
-            <label class="fader-label text-center">PITCH</label>
-            <input type="range" id="pitchA" min="0.5" max="1.5" step="0.01" value="1.0">
-          </div>
         </div>
 
-        <div class="mixer">
-          <div class="horizontal-fader-group">
-            <div class="fader-control-horizontal">
-              <label class="fader-label">VOL A</label>
-              <input type="range" id="volA" min="0" max="1" step="0.01" value="0.7">
+        <div class="main-mix">
+            <div class="turntable" id="deckA">
+                
+                <div class="eq-section">
+                    <div class="eq-knob">
+                        <label class="eq-label">LOW</label>
+                        <input type="range" id="eqLowA" min="-12" max="12" step="0.1" value="0.0">
+                    </div>
+                    <div class="eq-knob">
+                        <label class="eq-label">MID</label>
+                        <input type="range" id="eqMidA" min="-12" max="12" step="0.1" value="0.0">
+                    </div>
+                    <div class="eq-knob">
+                        <label class="eq-label">HIGH</label>
+                        <input type="range" id="eqHighA" min="-12" max="12" step="0.1" value="0.0">
+                    </div>
+                </div>
+
+                <div class="track-display-window" id="statusA">---</div>
+
+                <div class="record-plate">
+                    <div class="record" id="recordA">
+                        <div class="record-label">A</div>
+                        <div class="cue-mark"></div>
+                    </div>
+                </div>
+                
+                <div class="deck-controls">
+                    <select class="track-select" id="trackSelectA">
+                        <option value="-1" disabled selected>SELECT TRACK</option>
+                    </select>
+                    <div class="controls-row">
+                        <button class="btn play-btn" id="playA">PLAY</button>
+                        <button class="btn cue-btn" id="cueA">CUE</button>
+                        <button class="btn stop-btn" id="stopA">STOP</button>
+                        <div class="status-light" id="lightA"></div>
+                    </div>
+                    <label class="fader-label text-center">PITCH</label>
+                    <input type="range" id="pitchA" min="0.5" max="1.5" step="0.01" value="1.0">
+                </div>
             </div>
 
-            <div class="master-controls-group">
-              <label class="fader-label">OUTPUT</label>
-              <div class="vu-meter" id="masterVUMeter">
-                <div class="vu-segment" style="height:10%" data-level="1"></div>
-                <div class="vu-segment" style="height:10%" data-level="2"></div>
-                <div class="vu-segment" style="height:10%" data-level="3"></div>
-                <div class="vu-segment" style="height:10%" data-level="4"></div>
-                <div class="vu-segment" style="height:10%" data-level="5"></div>
-                <div class="vu-segment" style="height:10%" data-level="6"></div>
-                <div class="vu-segment yellow" style="height:10%" data-level="7"></div>
-                <div class="vu-segment yellow" style="height:10%" data-level="8"></div>
-                <div class="vu-segment red" style="height:10%" data-level="9"></div>
-                <div class="vu-segment red" style="height:10%" data-level="10"></div>
-              </div>
+            <div class="mixer">
+
+                <div class="horizontal-fader-group">
+                    <div class="fader-control-horizontal">
+                        <label class="fader-label">VOL A</label>
+                        <input type="range" id="volA" min="0" max="1" step="0.01" value="0.7">
+                    </div>
+
+                    <div class="master-controls-group">
+                        <label class="fader-label">OUTPUT</label>
+                        <div class="vu-meter" id="masterVUMeter">
+                            <div class="vu-segment" style="height: 10%;" data-level="1"></div>
+                            <div class="vu-segment" style="height: 10%;" data-level="2"></div>
+                            <div class="vu-segment" style="height: 10%;" data-level="3"></div>
+                            <div class="vu-segment" style="height: 10%;" data-level="4"></div>
+                            <div class="vu-segment" style="height: 10%;" data-level="5"></div>
+                            <div class="vu-segment" style="height: 10%;" data-level="6"></div>
+                            <div class="vu-segment yellow" style="height: 10%;" data-level="7"></div>
+                            <div class="vu-segment yellow" style="height: 10%;" data-level="8"></div>
+                            <div class="vu-segment red" style="height: 10%;" data-level="9"></div>
+                            <div class="vu-segment red" style="height: 10%;" data-level="10"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="fader-control-horizontal">
+                        <label class="fader-label">VOL B</label>
+                        <input type="range" id="volB" min="0" max="1" step="0.01" value="0.7">
+                    </div>
+                </div>
+
+                <div class="master-hp-fader-group">
+                    <div class="fader-control-horizontal" style="width: 45%;">
+                        <label class="fader-label">MASTER VOL</label>
+                        <input type="range" id="masterVol" min="0" max="1" step="0.01" value="0.9">
+                    </div>
+                    <div class="fader-control-horizontal" style="width: 45%;">
+                        <label class="fader-label">HP VOL</label>
+                        <input type="range" id="hpVol" min="0" max="1" step="0.01" value="0.8">
+                    </div>
+                </div>
+                
+                <div class="hp-mix-control">
+                    <label class="fader-label text-xs">HP CUE / MASTER</label>
+                    <input type="range" id="hpMix" min="0" max="1" step="0.01" value="0.5" title="Headphone Cue/Master Mix">
+                    <div class="hp-mix-labels">
+                        <span>CUE</span>
+                        <span>MASTER</span>
+                    </div>
+                </div>
+
+                <div class="fx-panel-top">
+                    <label class="fader-label text-xs">EFFECTS WET/DRY</label>
+
+                    <div class="fx-control">
+                        <input type="range" id="reverbWetDry" min="0" max="1" step="0.01" value="0.0" title="Reverb Wet/Dry">
+                        <label class="fader-label text-xs">REVERB</label>
+                    </div>
+                    <div class="fx-control">
+                        <input type="range" id="delayWetDry" min="0" max="1" step="0.01" value="0.0" title="Delay Wet/Dry">
+                        <label class="fader-label text-xs">DELAY</label>
+                    </div>
+                </div>
+                
+                
+                <div class="fx-panel">
+                    <label class="fader-label text-xs">MASTER CHAIN</label>
+                    
+                    <div class="fx-control">
+                        <input type="range" id="masterFilterFreq" min="100" max="18000" step="10" value="18000" title="Low Pass Filter Frequency">
+                        <label class="fader-label text-xs">FILTER (LPF)</label>
+                    </div>
+                    <div class="fx-control">
+                        <input type="range" id="delayFeedback" min="0.1" max="0.9" step="0.01" value="0.3" title="Delay Feedback">
+                        <label class="fader-label text-xs">FEEDBACK</label>
+                    </div>
+                    <div class="fx-control">
+                        <input type="range" id="delayTime" min="0.05" max="0.5" step="0.01" value="0.3" title="Delay Time">
+                        <label class="fader-label text-xs">TIME</label>
+                    </div>
+                </div>
+
+                <div class="crossfader-rail" id="crossfaderRail">
+                    <div class="crossfader-handle" id="crossfaderHandle"></div>
+                </div>
+                <label class="fader-label">X-FADER</label>
+                
             </div>
 
-            <div class="fader-control-horizontal">
-              <label class="fader-label">VOL B</label>
-              <input type="range" id="volB" min="0" max="1" step="0.01" value="0.7">
-            </div>
-          </div>
+            <div class="turntable" id="deckB">
+                
+                <div class="eq-section">
+                    <div class="eq-knob">
+                        <label class="eq-label">LOW</label>
+                        <input type="range" id="eqLowB" min="-12" max="12" step="0.1" value="0.0">
+                    </div>
+                    <div class="eq-knob">
+                        <label class="eq-label">MID</label>
+                        <input type="range" id="eqMidB" min="-12" max="12" step="0.1" value="0.0">
+                    </div>
+                    <div class="eq-knob">
+                        <label class="eq-label">HIGH</label>
+                        <input type="range" id="eqHighB" min="-12" max="12" step="0.1" value="0.0">
+                    </div>
+                </div>
 
-          <div class="master-hp-fader-group">
-            <div class="fader-control-horizontal" style="width:45%;">
-              <label class="fader-label">MASTER VOL</label>
-              <input type="range" id="masterVol" min="0" max="1" step="0.01" value="0.9">
-            </div>
-            <div class="fader-control-horizontal" style="width:45%;">
-              <label class="fader-label">HP VOL</label>
-              <input type="range" id="hpVol" min="0" max="1" step="0.01" value="0.8">
-            </div>
-          </div>
+                <div class="track-display-window" id="statusB">---</div>
 
-          <div class="hp-mix-control">
-            <label class="fader-label text-xs">HP CUE / MASTER</label>
-            <input type="range" id="hpMix" min="0" max="1" step="0.01" value="0.5" title="Headphone Cue/Master Mix">
-            <div class="hp-mix-labels"><span>CUE</span><span>MASTER</span></div>
-          </div>
-
-          <div class="fx-panel-top">
-            <label class="fader-label text-xs">EFFECTS WET/DRY</label>
-            <div class="fx-control">
-              <input type="range" id="reverbWetDry" min="0" max="1" step="0.01" value="0.0" title="Reverb Wet/Dry">
-              <label class="fader-label text-xs">REVERB</label>
+                <div class="record-plate">
+                    <div class="record" id="recordB">
+                        <div class="record-label">B</div>
+                        <div class="cue-mark"></div>
+                    </div>
+                </div>
+                
+                <div class="deck-controls">
+                    <select class="track-select" id="trackSelectB">
+                        <option value="-1" disabled selected>SELECT TRACK</option>
+                    </select>
+                    <div class="controls-row">
+                        <button class="btn play-btn" id="playB">PLAY</button>
+                        <button class="btn cue-btn" id="cueB">CUE</button>
+                        <button class="btn stop-btn" id="stopB">STOP</button>
+                        <div class="status-light" id="lightB"></div>
+                    </div>
+                    <label class="fader-label text-center">PITCH</label>
+                    <input type="range" id="pitchB" min="0.5" max="1.5" step="0.01" value="1.0">
+                </div>
             </div>
-            <div class="fx-control">
-              <input type="range" id="delayWetDry" min="0" max="1" step="0.01" value="0.0" title="Delay Wet/Dry">
-              <label class="fader-label text-xs">DELAY</label>
-            </div>
-          </div>
-
-          <div class="fx-panel">
-            <label class="fader-label text-xs">MASTER CHAIN</label>
-            <div class="fx-control">
-              <input type="range" id="masterFilterFreq" min="100" max="18000" step="10" value="18000" title="Low Pass Filter Frequency">
-              <label class="fader-label text-xs">FILTER (LPF)</label>
-            </div>
-            <div class="fx-control">
-              <input type="range" id="delayFeedback" min="0.1" max="0.9" step="0.01" value="0.3" title="Delay Feedback">
-              <label class="fader-label text-xs">FEEDBACK</label>
-            </div>
-            <div class="fx-control">
-              <input type="range" id="delayTime" min="0.05" max="0.5" step="0.01" value="0.3" title="Delay Time">
-              <label class="fader-label text-xs">TIME</label>
-            </div>
-          </div>
-
-          <div class="crossfader-rail" id="crossfaderRail"><div class="crossfader-handle" id="crossfaderHandle"></div></div>
-          <label class="fader-label">X-FADER</label>
         </div>
-
-        <div class="turntable" id="deckB">
-          <div class="eq-section">
-            <div class="eq-knob"><label class="eq-label">LOW</label><input type="range" id="eqLowB" min="-12" max="12" step="0.1" value="0.0"></div>
-            <div class="eq-knob"><label class="eq-label">MID</label><input type="range" id="eqMidB" min="-12" max="12" step="0.1" value="0.0"></div>
-            <div class="eq-knob"><label class="eq-label">HIGH</label><input type="range" id="eqHighB" min="-12" max="12" step="0.1" value="0.0"></div>
-          </div>
-
-          <div class="track-display-window" id="statusB">---</div>
-
-          <div class="record-plate">
-            <div class="record" id="recordB">
-              <div class="record-label">B</div>
-              <div class="cue-mark"></div>
-            </div>
-          </div>
-
-          <div class="deck-controls">
-            <select class="track-select" id="trackSelectB"><option value="-1" disabled selected>SELECT TRACK</option></select>
-            <div class="controls-row">
-              <button class="btn play-btn" id="playB">PLAY</button>
-              <button class="btn cue-btn" id="cueB">CUE</button>
-              <button class="btn stop-btn" id="stopB">STOP</button>
-              <div class="status-light" id="lightB"></div>
-            </div>
-            <label class="fader-label text-center">PITCH</label>
-            <input type="range" id="pitchB" min="0.5" max="1.5" step="0.01" value="1.0">
-          </div>
-        </div>
-      </div>
     </div>
-  </div>
+    <script>
+        // --- JavaScript (Functional code for audio and interaction) ---
+        let TRACKS = [];
+        let audioCtx;
+        let animationFrameId;
+        let crossfaderGainA, crossfaderGainB, masterFilter, delayNode, feedbackGain, delayWetGain, reverbWetGain, reverbDelay, reverbLowPass, cueGain, masterOutGain;
+        let masterVolGain;
+        let masterPreListen; // Node for Master signal split to headphones
+        let analyserNode; // For VU Meter
 
-  <script>
-    /* --------- Audio/Deck plumbing (unchanged) --------- */
-    let TRACKS = [];
-    let audioCtx;
-    let animationFrameId;
-    let crossfaderGainA, crossfaderGainB, masterFilter, delayNode, feedbackGain, delayWetGain, reverbWetGain, reverbDelay, reverbLowPass, cueGain, masterOutGain;
-    let masterVolGain;
-    let masterPreListen;
-    let analyserNode;
+        const DECK_A = {
+            id: 'A',
+            trackIndex: -1,
+            buffer: null,
+            source: null,
+            gain: null,
+            rate: null,
+            isPlaying: false,
+            playbackPos: 0,
+            lastUpdateTime: 0,
+            currentRotation: 0,
+            rotationStartClientX: 0,
+            eq: { low: null, mid: null, high: null, scratch: null },
+            isCueing: false,
+            cueNode: null,
+            hasMoved: false // NEW: Track if dragging occurred for scratch/jump logic
+        };
+        const DECK_B = {
+            id: 'B',
+            trackIndex: -1,
+            buffer: null,
+            source: null,
+            gain: null,
+            rate: null,
+            isPlaying: false,
+            playbackPos: 0,
+            lastUpdateTime: 0,
+            currentRotation: 0,
+            rotationStartClientX: 0,
+            eq: { low: null, mid: null, high: null, scratch: null },
+            isCueing: false,
+            cueNode: null,
+            hasMoved: false // NEW: Track if dragging occurred for scratch/jump logic
+        };
 
-    const DECK_A = { id:'A', trackIndex:-1, buffer:null, source:null, gain:null, rate:null, isPlaying:false, playbackPos:0, lastUpdateTime:0, currentRotation:0, rotationStartClientX:0, eq:{low:null,mid:null,high:null,scratch:null}, isCueing:false, cueNode:null, hasMoved:false };
-    const DECK_B = { id:'B', trackIndex:-1, buffer:null, source:null, gain:null, rate:null, isPlaying:false, playbackPos:0, lastUpdateTime:0, currentRotation:0, rotationStartClientX:0, eq:{low:null,mid:null,high:null,scratch:null}, isCueing:false, cueNode:null, hasMoved:false };
+        const $ = id => document.getElementById(id);
 
-    const $ = id => document.getElementById(id);
-    const decks = {
-      A:{ state:DECK_A, recordEl:$('recordA'), trackSelectEl:$('trackSelectA'), playBtn:$('playA'), stopBtn:$('stopA'), cueBtn:$('cueA'), light:$('lightA'), status:$('statusA'), pitch:$('pitchA'), vol:$('volA'), eqLow:$('eqLowA'), eqMid:$('eqMidA'), eqHigh:$('eqHighA') },
-      B:{ state:DECK_B, recordEl:$('recordB'), trackSelectEl:$('trackSelectB'), playBtn:$('playB'), stopBtn:$('stopB'), cueBtn:$('cueB'), light:$('lightB'), status:$('statusB'), pitch:$('pitchB'), vol:$('volB'), eqLow:$('eqLowB'), eqMid:$('eqMidB'), eqHigh:$('eqHighB') },
-    };
+        const decks = {
+            A: {
+                state: DECK_A,
+                recordEl: $('recordA'),
+                trackSelectEl: $('trackSelectA'),
+                playBtn: $('playA'),
+                stopBtn: $('stopA'),
+                cueBtn: $('cueA'),
+                light: $('lightA'),
+                status: $('statusA'),
+                pitch: $('pitchA'),
+                vol: $('volA'),
+                eqLow: $('eqLowA'),
+                eqMid: $('eqMidA'),
+                eqHigh: $('eqHighA')
+            },
+            B: {
+                state: DECK_B,
+                recordEl: $('recordB'),
+                trackSelectEl: $('trackSelectB'),
+                playBtn: $('playB'),
+                stopBtn: $('stopB'),
+                cueBtn: $('cueB'),
+                light: $('lightB'),
+                status: $('statusB'),
+                pitch: $('pitchB'),
+                vol: $('volB'),
+                eqLow: $('eqLowB'),
+                eqMid: $('eqMidB'),
+                eqHigh: $('eqHighB')
+            },
+        };
 
-    const crossfaderHandle = $('crossfaderHandle');
-    const crossfaderRail   = $('crossfaderRail');
-    const delayWetDryControl = $('delayWetDry');
-    const reverbWetDryControl = $('reverbWetDry');
-    const delayFeedbackControl = $('delayFeedback');
-    const delayTimeActualControl = $('delayTime');
-    const masterFilterFreq = $('masterFilterFreq');
-    const hpVolControl = $('hpVol');
-    const musicFilesInput = $('musicFiles');
-    const loadFilesBtn = $('loadFilesBtn');
-    const loadingStatus = $('loadingStatus');
-    const masterVolControl = $('masterVol');
-    const masterVUMeter = $('masterVUMeter');
-    const hpMixControl = $('hpMix');
-    const vuSegments = Array.from(masterVUMeter.querySelectorAll('.vu-segment'));
+        const crossfaderHandle = $('crossfaderHandle');
+        const crossfaderRail = $('crossfaderRail');
+        const delayWetDryControl = $('delayWetDry');
+        const reverbWetDryControl = $('reverbWetDry');
+        const delayFeedbackControl = $('delayFeedback');
+        const delayTimeActualControl = $('delayTime');
+        const masterFilterFreq = $('masterFilterFreq');
+        const hpVolControl = $('hpVol');
+        const musicFilesInput = $('musicFiles');
+        const loadFilesBtn = $('loadFilesBtn');
+        const loadingStatus = $('loadingStatus');
+        const masterVolControl = $('masterVol');
+        const masterVUMeter = $('masterVUMeter');
+        const hpMixControl = $('hpMix');
+        const vuSegments = Array.from(masterVUMeter.querySelectorAll('.vu-segment'));
 
-    const BLANK_DISPLAY_TEXT = '---';
-    const RECORD_PADDING_PERCENT = 0.1;
+        const SCRATCH_SENSITIVITY = 0.5;
+        const SCRATCH_FILTER_FREQ = 6000;
+        const BLANK_DISPLAY_TEXT = '---';
+        const RECORD_PADDING_PERCENT = 0.1; // 10% inner and outer groove area for position jump
 
-    function initAudio(){
-      if (audioCtx) return;
-      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        /* ---------- NEW: STYLUS STATE ---------- */
+        const stylus = undefined; // not used here; stylus is added by the injected script below
 
-      cueGain = audioCtx.createGain();
-      cueGain.gain.value = parseFloat(hpVolControl.value);
-      cueGain.connect(audioCtx.destination);
+        function renderStylus(deckId) { /* no-op in base file */ }
+        function applyStylusToAudio(deckId) { /* no-op in base file */ }
+        function setStylusFromPlayback(deckId) { /* no-op in base file */ }
+        function attachStylusEvents(deckId) { /* no-op in base file */ }
 
-      masterPreListen = audioCtx.createGain();
-      updateHPMix(parseFloat(hpMixControl.value));
-      masterPreListen.connect(cueGain);
+        /* ---------- EXISTING AUDIO ENGINE BELOW (unchanged) ---------- */
 
-      masterOutGain = audioCtx.createGain();
-      masterOutGain.gain.value = 1.0;
+        function initAudio() {
+            if (audioCtx) return;
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
-      masterVolGain = audioCtx.createGain();
-      masterVolGain.gain.value = parseFloat(masterVolControl.value);
+            // --- CUE CHAIN ---
+            cueGain = audioCtx.createGain();
+            cueGain.gain.value = parseFloat(hpVolControl.value);
+            cueGain.connect(audioCtx.destination);
 
-      masterFilter = audioCtx.createBiquadFilter();
-      masterFilter.type = 'lowpass';
-      masterFilter.frequency.value = parseFloat(masterFilterFreq.value);
-      masterFilter.Q.value = .5;
+            masterPreListen = audioCtx.createGain(); // Master signal split for headphones
+            updateHPMix(parseFloat(hpMixControl.value));
+            masterPreListen.connect(cueGain);
 
-      delayNode = audioCtx.createDelay(1.0);
-      delayNode.delayTime.value = parseFloat(delayTimeActualControl ? delayTimeActualControl.value : 0.3);
+            // --- MASTER CHAIN ---
+            masterOutGain = audioCtx.createGain();
+            masterOutGain.gain.value = 1.0;
+            
+            masterVolGain = audioCtx.createGain();
+            masterVolGain.gain.value = parseFloat(masterVolControl.value);
 
-      feedbackGain = audioCtx.createGain();
-      feedbackGain.gain.value = parseFloat(delayFeedbackControl ? delayFeedbackControl.value : 0.3);
+            masterFilter = audioCtx.createBiquadFilter();
+            masterFilter.type = 'lowpass';
+            masterFilter.frequency.value = parseFloat(masterFilterFreq.value);
+            masterFilter.Q.value = 0.5;
 
-      delayWetGain = audioCtx.createGain();
-      delayWetGain.gain.value = 0.0;
+            // --- EFFECTS CHAIN ---
+            delayNode = audioCtx.createDelay(1.0);
+            delayNode.delayTime.value = parseFloat(delayTimeActualControl.value);
+            
+            feedbackGain = audioCtx.createGain();
+            feedbackGain.gain.value = parseFloat(delayFeedbackControl.value);
 
-      reverbLowPass = audioCtx.createBiquadFilter();
-      reverbLowPass.type = 'lowpass';
-      reverbLowPass.frequency.value = 4000;
-      reverbLowPass.Q.value = .5;
+            delayWetGain = audioCtx.createGain();
+            delayWetGain.gain.value = 0.0;
+            
+            // Reverb (Simple fixed filter for "reverb" sound effect)
+            reverbLowPass = audioCtx.createBiquadFilter();
+            reverbLowPass.type = 'lowpass';
+            reverbLowPass.frequency.value = 4000;
+            reverbLowPass.Q.value = 0.5;
 
-      reverbDelay = audioCtx.createDelay(.3);
-      reverbDelay.delayTime.value = .05;
+            reverbDelay = audioCtx.createDelay(0.3);
+            reverbDelay.delayTime.value = 0.05;
 
-      reverbWetGain = audioCtx.createGain();
-      reverbWetGain.gain.value = 0.0;
+            reverbWetGain = audioCtx.createGain();
+            reverbWetGain.gain.value = 0.0;
 
-      delayNode.connect(feedbackGain);
-      feedbackGain.connect(delayNode);
-      delayNode.connect(delayWetGain);
+            // Delay Feedback Loop
+            delayNode.connect(feedbackGain);
+            feedbackGain.connect(delayNode);
+            delayNode.connect(delayWetGain);
 
-      masterFilter.connect(reverbDelay);
-      reverbDelay.connect(reverbLowPass);
-      reverbLowPass.connect(reverbWetGain);
+            // Reverb Effect chain
+            masterFilter.connect(reverbDelay);
+            reverbDelay.connect(reverbLowPass);
+            reverbLowPass.connect(reverbWetGain);
+            
+            // --- CUE/MASTER/DELAY/REVERB CONNECTS ---
+            masterOutGain.connect(delayNode);
+            masterOutGain.connect(masterFilter);
 
-      masterOutGain.connect(delayNode);
-      masterOutGain.connect(masterFilter);
+            masterFilter.connect(masterVolGain);
+            delayWetGain.connect(masterVolGain);
+            reverbWetGain.connect(masterVolGain);
 
-      masterFilter.connect(masterVolGain);
-      delayWetGain.connect(masterVolGain);
-      reverbWetGain.connect(masterVolGain);
+            masterVolGain.connect(audioCtx.destination);
+            masterVolGain.connect(masterPreListen);
 
-      masterVolGain.connect(audioCtx.destination);
-      masterVolGain.connect(masterPreListen);
+            // --- VU METER ANALYSER ---
+            analyserNode = audioCtx.createAnalyser();
+            analyserNode.fftSize = 256;
+            masterVolGain.connect(analyserNode);
 
-      analyserNode = audioCtx.createAnalyser();
-      analyserNode.fftSize = 256;
-      masterVolGain.connect(analyserNode);
+            // --- DECK A & B INITIALIZATION ---
+            crossfaderGainA = audioCtx.createGain();
+            crossfaderGainB = audioCtx.createGain();
 
-      crossfaderGainA = audioCtx.createGain();
-      crossfaderGainB = audioCtx.createGain();
+            initDeckAudio(DECK_A, crossfaderGainA);
+            initDeckAudio(DECK_B, crossfaderGainB);
 
-      initDeckAudio(DECK_A, crossfaderGainA);
-      initDeckAudio(DECK_B, crossfaderGainB);
+            crossfaderGainA.connect(masterOutGain);
+            crossfaderGainB.connect(masterOutGain);
 
-      crossfaderGainA.connect(masterOutGain);
-      crossfaderGainB.connect(masterOutGain);
+            // Set initial crossfader value (middle)
+            updateCrossfader(0.5);
 
-      updateCrossfader(.5);
-
-      requestAnimationFrame(update);
-    }
-
-    function initDeckAudio(deckState, crossfaderGain){
-      deckState.gain = audioCtx.createGain();
-      deckState.gain.gain.value = parseFloat($('vol'+deckState.id).value);
-      deckState.gain.connect(crossfaderGain);
-
-      deckState.cueNode = audioCtx.createGain();
-      deckState.cueNode.gain.value = 0.0;
-      deckState.cueNode.connect(cueGain);
-
-      const eqLow  = audioCtx.createBiquadFilter();  eqLow.type='lowshelf';  eqLow.frequency.value=320;  eqLow.gain.value=parseFloat($('eqLow'+deckState.id).value);
-      const eqMid  = audioCtx.createBiquadFilter();  eqMid.type='peaking';   eqMid.frequency.value=1000; eqMid.Q.value=1.0; eqMid.gain.value=parseFloat($('eqMid'+deckState.id).value);
-      const eqHigh = audioCtx.createBiquadFilter();  eqHigh.type='highshelf';eqHigh.frequency.value=3200; eqHigh.gain.value=parseFloat($('eqHigh'+deckState.id).value);
-
-      const scratchFilter = audioCtx.createBiquadFilter();
-      scratchFilter.type='highpass'; scratchFilter.frequency.value=20; scratchFilter.Q.value=1.0;
-
-      deckState.eq = { low:eqLow, mid:eqMid, high:eqHigh, scratch:scratchFilter };
-
-      eqLow.connect(eqMid); eqMid.connect(eqHigh); eqHigh.connect(scratchFilter);
-      scratchFilter.connect(deckState.gain);
-      scratchFilter.connect(deckState.cueNode);
-    }
-
-    function loadTrack(files){
-      TRACKS = [];
-      loadingStatus.textContent = 'Loading...';
-      musicFilesInput.files = files;
-
-      const filePromises = Array.from(files)
-        .filter(f => f.type.startsWith('audio/'))
-        .map(file => new Promise((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = (e) => {
-            audioCtx.decodeAudioData(e.target.result, buf => {
-              TRACKS.push({ fileName:file.name, buffer:buf }); resolve();
-            }, reject);
-          };
-          reader.onerror = reject;
-          reader.readAsArrayBuffer(file);
-        }));
-
-      Promise.all(filePromises).then(() => {
-        loadingStatus.textContent = `${TRACKS.length} files loaded.`;
-        populateTrackSelects();
-      }).catch(err => {
-        console.error(err); loadingStatus.textContent = 'Error loading files.';
-      });
-    }
-
-    function populateTrackSelects(){
-      const A = decks.A.trackSelectEl, B = decks.B.trackSelectEl;
-      [A,B].forEach(sel => {
-        sel.innerHTML = '<option value="-1" disabled selected>SELECT TRACK</option>';
-        TRACKS.forEach((t, i) => {
-          const opt = document.createElement('option');
-          opt.value = i; opt.textContent = t.fileName; sel.appendChild(opt);
-        });
-      });
-    }
-
-    function loadDeck(deckId, idx){
-      const deck = decks[deckId], st = deck.state;
-      if (st.source){ st.source.stop(); st.source.disconnect(); st.source=null; }
-      if (idx === -1 || idx >= TRACKS.length){ st.trackIndex=-1; st.buffer=null; deck.status.textContent=BLANK_DISPLAY_TEXT; deck.light.classList.remove('active'); return; }
-      const track = TRACKS[idx];
-      st.trackIndex=idx; st.buffer=track.buffer; st.playbackPos=0; st.currentRotation=0;
-      deck.status.textContent = track.fileName.substring(0, 30);
-      deck.light.classList.remove('active');
-      updatePitch(deckId, parseFloat(deck.pitch.value));
-    }
-
-    function playDeck(deckId){
-      const deck = decks[deckId], st = deck.state;
-      if (!st.buffer) return;
-      if (st.source){ st.source.stop(); st.source.disconnect(); st.source=null; }
-
-      const src = audioCtx.createBufferSource();
-      src.buffer = st.buffer; src.connect(st.eq.low);
-      src.playbackRate.value = st.rate || 1.0; st.rateNode = src.playbackRate;
-
-      st.source = src; st.isPlaying = true; st.lastUpdateTime = audioCtx.currentTime;
-      src.start(0, st.playbackPos);
-      deck.light.classList.add('active');
-
-      src.onended = () => { if (st.isPlaying && !st.isCueing) stopDeck(deckId); };
-    }
-
-    function stopDeck(deckId){
-      const deck = decks[deckId], st = deck.state;
-      if (st.source){ st.source.stop(); st.source.disconnect(); st.source=null; }
-      st.isPlaying=false; st.playbackPos=0; st.currentRotation=0;
-      deck.light.classList.remove('active');
-    }
-
-    function cueDeck(deckId){
-      const deck = decks[deckId], st = deck.state;
-      if (!st.buffer) return;
-
-      if (st.isCueing){
-        st.isCueing=false; deck.cueBtn.classList.remove('active');
-        if (st.source){ st.source.stop(); st.source.disconnect(); st.source=null; }
-        st.cueNode.gain.value=0.0; st.gain.gain.value=0.0; return;
-      }
-
-      st.isCueing=true; deck.cueBtn.classList.add('active');
-      st.gain.gain.value=0.0; st.cueNode.gain.value=1.0;
-
-      if (st.source){ st.source.stop(); st.source.disconnect(); st.source=null; }
-      st.playbackPos=0;
-
-      const src = audioCtx.createBufferSource();
-      src.buffer=st.buffer; src.connect(st.eq.low);
-      src.playbackRate.value = st.rate || 1.0; st.rateNode = src.playbackRate;
-      st.source=src; st.isPlaying=true; st.lastUpdateTime=audioCtx.currentTime;
-      src.start(0, st.playbackPos);
-
-      src.onended = () => {
-        if (st.isCueing){
-          stopDeck(deckId);
-          st.isCueing=false; deck.cueBtn.classList.remove('active'); st.cueNode.gain.value=0.0;
+            // Start the visual update loop
+            requestAnimationFrame(update);
         }
-      };
-    }
 
-    function updateDeckTime(st){
-      if (!st.isPlaying || !st.buffer) return;
-      const dt = audioCtx.currentTime - st.lastUpdateTime;
-      st.lastUpdateTime = audioCtx.currentTime;
-      const rate = st.rateNode ? st.rateNode.value : 1.0;
-      st.playbackPos = (st.playbackPos + dt * rate) % st.buffer.duration;
-      if (st.playbackPos < 0) st.playbackPos += st.buffer.duration;
-    }
+        function initDeckAudio(deckState, crossfaderGain) {
+            // Master Deck Gain (for volume fader)
+            deckState.gain = audioCtx.createGain();
+            deckState.gain.gain.value = parseFloat($('vol' + deckState.id).value);
+            deckState.gain.connect(crossfaderGain);
 
-    function updatePitch(deckId, v){ const st = decks[deckId].state; st.rate = v; if (st.source) st.rateNode.linearRampToValueAtTime(v, audioCtx.currentTime + .05); }
-    function updateVolume(deckId, v){ const st = decks[deckId].state; if (!st.isCueing) st.gain.gain.linearRampToValueAtTime(v, audioCtx.currentTime + .05); }
-    function updateEQ(deckId, type, v){ const st = decks[deckId].state; st.eq[type].gain.linearRampToValueAtTime(v, audioCtx.currentTime + .05); }
-    function updateMasterVol(v){ masterVolGain.gain.linearRampToValueAtTime(v, audioCtx.currentTime + .05); }
-    function updateHPMix(v){ masterPreListen.gain.value = v; }
+            // CUE Pre-listen Node
+            deckState.cueNode = audioCtx.createGain();
+            deckState.cueNode.gain.value = 0.0; // Start muted
+            deckState.cueNode.connect(cueGain);
 
-    function updateCrossfader(value){
-      const aGain = Math.cos(value * 0.5 * Math.PI);
-      const bGain = Math.cos((1.0 - value) * 0.5 * Math.PI);
-      crossfaderGainA.gain.value = aGain;
-      crossfaderGainB.gain.value = bGain;
-    }
-    function updateFilterFreq(v){ masterFilter.frequency.linearRampToValueAtTime(v, audioCtx.currentTime + .05); }
-    function updateDelayFeedback(v){ feedbackGain.gain.linearRampToValueAtTime(v, audioCtx.currentTime + .05); }
-    function updateDelayTime(v){ delayNode.delayTime.linearRampToValueAtTime(v, audioCtx.currentTime + .05); }
-    function updateFXWetDry(fx, v){ if (fx==='delay') delayWetGain.gain.linearRampToValueAtTime(v, audioCtx.currentTime + .05); else if (fx==='reverb') reverbWetGain.gain.linearRampToValueAtTime(v, audioCtx.currentTime + .05); }
+            // EQ Setup
+            const eqLow = audioCtx.createBiquadFilter();
+            eqLow.type = 'lowshelf';
+            eqLow.frequency.value = 320;
+            eqLow.gain.value = parseFloat($('eqLow' + deckState.id).value);
 
-    function updateVUMeter(){
-      if (!analyserNode) return;
-      const N = analyserNode.frequencyBinCount, data = new Uint8Array(N);
-      analyserNode.getByteFrequencyData(data);
-      let sum = 0; for (let i=0;i<N;i++){ sum += data[i]*i; }
-      const norm = Math.min(10, Math.max(0, Math.ceil(sum / (N * 100))));
-      vuSegments.forEach((seg, idx) => seg.classList.toggle('on', (10-idx) <= norm));
-    }
+            const eqMid = audioCtx.createBiquadFilter();
+            eqMid.type = 'peaking';
+            eqMid.frequency.value = 1000;
+            eqMid.Q.value = 1.0;
+            eqMid.gain.value = parseFloat($('eqMid' + deckState.id).value);
 
-    function update(){
-      updateDeckTime(DECK_A); updateDeckTime(DECK_B);
-      updateRecordRotation(DECK_A); updateRecordRotation(DECK_B);
-      updateVUMeter();
-      animationFrameId = requestAnimationFrame(update);
-    }
+            const eqHigh = audioCtx.createBiquadFilter();
+            eqHigh.type = 'highshelf';
+            eqHigh.frequency.value = 3200;
+            eqHigh.gain.value = parseFloat($('eqHigh' + deckState.id).value);
 
-    function updateRecordRotation(st){
-      if (!st.buffer) return;
-      let rate = 0;
-      if (st.isDragging) rate = st.scratchRate;
-      else if (st.isPlaying) rate = st.rateNode ? st.rateNode.value : 1.0;
+            // Scratch Filter (Highpass filter used when scratching to remove bass rumble)
+            const scratchFilter = audioCtx.createBiquadFilter();
+            scratchFilter.type = 'highpass';
+            scratchFilter.frequency.value = 20; // Default low
+            scratchFilter.Q.value = 1.0;
 
-      const rotationSpeed = rate * 360;
-      const dt = (audioCtx.currentTime - st.lastUpdateTime);
-      if (rate !== 0){
-        st.currentRotation = (st.currentRotation + rotationSpeed * dt) % 360;
-      }
-      decks[st.id].recordEl.style.transform = `rotate(${st.currentRotation}deg)`;
-    }
+            deckState.eq = { low: eqLow, mid: eqMid, high: eqHigh, scratch: scratchFilter };
 
-    function jumpToPosition(deckId, e){
-      const deck = decks[deckId], st = deck.state, recordEl = deck.recordEl;
-      if (!st.buffer) return;
+            // Deck Audio Path: Source -> EQ Chain -> Scratch Filter -> Gain (Volume)
+            eqLow.connect(eqMid);
+            eqMid.connect(eqHigh);
+            eqHigh.connect(scratchFilter);
+            scratchFilter.connect(deckState.gain);
 
-      const rect = recordEl.getBoundingClientRect();
-      const centerX = rect.left + rect.width/2;
-      const centerY = rect.top + rect.height/2;
-      const radius  = rect.width/2;
+            // Connect EQ output to the cue node as well
+            scratchFilter.connect(deckState.cueNode);
+        }
 
-      const clientX = e.clientX || (e.touches && e.touches[0] ? e.touches[0].clientX : e.clientX);
-      const clientY = e.clientY || (e.touches && e.touches[0] ? e.touches[0].clientY : e.clientY);
+        function loadTrack(files) {
+            TRACKS = [];
+            loadingStatus.textContent = 'Loading...';
+            musicFilesInput.files = files; // Store files on the input element for persistence
 
-      const dx = clientX - centerX, dy = clientY - centerY;
-      const distance = Math.sqrt(dx*dx + dy*dy);
-      let normalized = distance / radius;
+            const filePromises = Array.from(files)
+                .filter(file => file.type.startsWith('audio/'))
+                .map(file => {
+                    return new Promise((resolve, reject) => {
+                        const reader = new FileReader();
+                        reader.onload = (e) => {
+                            audioCtx.decodeAudioData(e.target.result, buffer => {
+                                TRACKS.push({
+                                    fileName: file.name,
+                                    buffer: buffer
+                                });
+                                resolve();
+                            }, reject);
+                        };
+                        reader.onerror = reject;
+                        reader.readAsArrayBuffer(file);
+                    });
+                });
 
-      const P = RECORD_PADDING_PERCENT;
-      let t = (normalized - P) / (1 - 2*P);
-      t = Math.max(0, Math.min(1, t));
+            Promise.all(filePromises)
+                .then(() => {
+                    loadingStatus.textContent = `${TRACKS.length} files loaded.`;
+                    populateTrackSelects();
+                })
+                .catch(error => {
+                    console.error("Error loading files:", error);
+                    loadingStatus.textContent = 'Error loading files.';
+                });
+        }
 
-      const newPos = t * st.buffer.duration;
-      st.playbackPos = newPos;
+        function populateTrackSelects() {
+            const selectA = decks.A.trackSelectEl;
+            const selectB = decks.B.trackSelectEl;
 
-      if (st.source){ st.source.stop(); st.source.disconnect(); st.source=null; }
+            [selectA, selectB].forEach(select => {
+                // Clear existing options
+                select.innerHTML = '<option value="-1" disabled selected>SELECT TRACK</option>';
+                
+                TRACKS.forEach((track, index) => {
+                    const option = document.createElement('option');
+                    option.value = index;
+                    option.textContent = track.fileName;
+                    select.appendChild(option);
+                });
+            });
+        }
 
-      const src = audioCtx.createBufferSource();
-      src.buffer = st.buffer; src.connect(st.eq.low);
-      src.playbackRate.value = st.rate || 1.0; st.rateNode = src.playbackRate;
+        function loadDeck(deckId, trackIndex) {
+            const deck = decks[deckId];
+            const deckState = deck.state;
 
-      st.source = src; st.isPlaying = true; st.lastUpdateTime = audioCtx.currentTime;
-      src.start(0, st.playbackPos);
-      src.onended = () => { if (st.isPlaying && !st.isCueing) stopDeck(deckId); };
-      if (!st.isCueing) deck.light.classList.add('active');
-    }
+            if (deckState.source) {
+                deckState.source.stop();
+                deckState.source.disconnect();
+                deckState.source = null;
+            }
 
-    let activeDeck = null;
-    function handleStart(e, deckId){
-      // Allow pinch-zoom: if multi-touch, do nothing and let browser handle it.
-      if (e.touches && e.touches.length > 1) return;
-      e.preventDefault();
-      initAudio();
-      const deck = decks[deckId], st = deck.state;
-      if (!st.buffer) return;
+            if (trackIndex === -1 || trackIndex >= TRACKS.length) {
+                deckState.trackIndex = -1;
+                deckState.buffer = null;
+                deck.status.textContent = BLANK_DISPLAY_TEXT;
+                deck.light.classList.remove('active');
+                return;
+            }
 
-      st.isDragging = true; activeDeck = deck; st.hasMoved=false;
-      if (st.source){ st.source.stop(); st.source.disconnect(); st.source=null; }
+            const track = TRACKS[trackIndex];
+            deckState.trackIndex = trackIndex;
+            deckState.buffer = track.buffer;
+            deckState.playbackPos = 0;
+            deckState.currentRotation = 0;
+            deck.status.textContent = track.fileName.substring(0, 30); // Display truncated name
+            deck.light.classList.remove('active');
+            
+            // Re-initiate rate (pitch) since source is new
+            updatePitch(deckId, parseFloat(deck.pitch.value));
+        }
 
-      st.rotationStartClientX = (e.clientX != null) ? e.clientX : e.touches[0].clientX;
-      st.scratchRate = 0;
-      st.eq.scratch.frequency.linearRampToValueAtTime(6000, audioCtx.currentTime + .01);
+        function playDeck(deckId) {
+            const deck = decks[deckId];
+            const deckState = deck.state;
+            
+            if (!deckState.buffer) return;
 
-      const src = audioCtx.createBufferSource();
-      src.buffer = st.buffer; src.connect(st.eq.low);
-      src.playbackRate.value = 0; st.rateNode = src.playbackRate;
-      st.source = src; st.isPlaying=true; st.lastUpdateTime=audioCtx.currentTime;
-      src.start(0, st.playbackPos);
-    }
+            if (deckState.source) {
+                deckState.source.stop();
+                deckState.source.disconnect();
+                deckState.source = null;
+            }
 
-    function handleMove(e){
-      // Let pinch-zoom go through
-      if (e.touches && e.touches.length > 1) return;
-      if (!activeDeck || !activeDeck.state.isDragging) return;
-      e.preventDefault();
-      const deck = activeDeck, st = deck.state;
+            const newSource = audioCtx.createBufferSource();
+            newSource.buffer = deckState.buffer;
 
-      const clientX = (e.clientX != null) ? e.clientX : (e.touches && e.touches.length ? e.touches[0].clientX : null);
-      if (clientX === null) return;
+            // Path: Source -> EQ Low
+            newSource.connect(deckState.eq.low);
 
-      st.hasMoved = true;
-      const diffX = clientX - st.rotationStartClientX;
-      st.rotationStartClientX = clientX;
+            // Connect to rate (pitch) node (PlaybackRate)
+            newSource.playbackRate.value = deckState.rate || 1.0;
+            deckState.rateNode = newSource.playbackRate; // Store reference to control rate during playback
 
-      const sensitivity = .5;
-      const rotationChange = diffX * sensitivity;
-      const rateChange = rotationChange / 360;
+            // Update state
+            deckState.source = newSource;
+            deckState.isPlaying = true;
+            deckState.lastUpdateTime = audioCtx.currentTime;
 
-      st.scratchRate = rateChange * 10;
-      st.currentRotation = (st.currentRotation + rotationChange) % 360;
+            // Start from the current playback position
+            newSource.start(0, deckState.playbackPos);
+            deck.light.classList.add('active');
 
-      const playbackChange = rotationChange * st.buffer.duration * 0.0027777777777778;
-      st.playbackPos = (st.playbackPos + playbackChange) % st.buffer.duration;
-      if (st.playbackPos < 0) st.playbackPos += st.buffer.duration;
+            newSource.onended = () => {
+                if (deckState.isPlaying && !deckState.isCueing) {
+                    stopDeck(deckId);
+                }
+            };
+        }
 
-      if (st.source) st.rateNode.value = st.scratchRate;
-    }
+        function stopDeck(deckId) {
+            const deck = decks[deckId];
+            const deckState = deck.state;
 
-    function handleEnd(deckId){
-      const deck = decks[deckId], st = deck.state;
-      if (!st.isDragging) return;
+            if (deckState.source) {
+                deckState.source.stop();
+                deckState.source.disconnect();
+                deckState.source = null;
+            }
+            deckState.isPlaying = false;
+            deckState.playbackPos = 0;
+            deckState.currentRotation = 0;
+            deck.light.classList.remove('active');
+        }
 
-      st.isDragging=false; activeDeck=null;
-      st.eq.scratch.frequency.linearRampToValueAtTime(20, audioCtx.currentTime + .1);
+        function cueDeck(deckId) {
+            const deck = decks[deckId];
+            const deckState = deck.state;
 
-      if (!st.hasMoved) return;
+            if (!deckState.buffer) return;
 
-      if (st.source){ st.source.stop(); st.source.disconnect(); st.source=null; }
+            // If already cueing, un-cue and stop
+            if (deckState.isCueing) {
+                deckState.isCueing = false;
+                deck.cueBtn.classList.remove('active');
+                if (deckState.source) {
+                    deckState.source.stop();
+                    deckState.source.disconnect();
+                    deckState.source = null;
+                }
+                deckState.cueNode.gain.value = 0.0; // Mute in headphones
+                // Restore deck A or B gain to 0 (muting it in the master out) while cued/stopped
+                deckState.gain.gain.value = 0.0; 
+                return;
+            }
 
-      const src = audioCtx.createBufferSource();
-      src.buffer=st.buffer; src.connect(st.eq.low);
-      src.playbackRate.value = st.rate || 1.0; st.rateNode = src.playbackRate;
+            // Start Cueing
+            deckState.isCueing = true;
+            deck.cueBtn.classList.add('active');
+            
+            // Temporarily set deck volume to 0 to remove from master chain
+            deckState.gain.gain.value = 0.0; 
+            deckState.cueNode.gain.value = 1.0; // Unmute in headphones
 
-      st.source=src; st.isPlaying=true; st.lastUpdateTime=audioCtx.currentTime;
-      src.start(0, st.playbackPos);
-      src.onended = () => { if (st.isPlaying && !st.isCueing) stopDeck(deckId); };
-    }
+            // Stop if already playing
+            if (deckState.source) {
+                deckState.source.stop();
+                deckState.source.disconnect();
+                deckState.source = null;
+            }
 
-    loadFilesBtn.addEventListener('click', () => musicFilesInput.click());
-    musicFilesInput.addEventListener('change', (e) => { if (e.target.files.length) loadTrack(e.target.files); });
+            // Start playback from cue point (0.0 for now, could be improved)
+            deckState.playbackPos = 0; 
+            
+            // Play a new source only to the cue channel
+            const newSource = audioCtx.createBufferSource();
+            newSource.buffer = deckState.buffer;
+            newSource.connect(deckState.eq.low);
+            newSource.playbackRate.value = deckState.rate || 1.0;
+            deckState.rateNode = newSource.playbackRate;
 
-    decks.A.trackSelectEl.addEventListener('change', (e) => loadDeck('A', parseInt(e.target.value)));
-    decks.A.playBtn.addEventListener('click', () => playDeck('A'));
-    decks.A.stopBtn.addEventListener('click', () => stopDeck('A'));
-    decks.A.cueBtn.addEventListener('click', () => cueDeck('A'));
-    decks.A.pitch.addEventListener('input', (e) => updatePitch('A', parseFloat(e.target.value)));
-    decks.A.vol.addEventListener('input',   (e) => updateVolume('A', parseFloat(e.target.value)));
-    decks.A.eqLow.addEventListener('input', (e) => updateEQ('A','low', parseFloat(e.target.value)));
-    decks.A.eqMid.addEventListener('input', (e) => updateEQ('A','mid', parseFloat(e.target.value)));
-    decks.A.eqHigh.addEventListener('input',(e) => updateEQ('A','high',parseFloat(e.target.value)));
+            deckState.source = newSource;
+            deckState.isPlaying = true;
+            deckState.lastUpdateTime = audioCtx.currentTime;
 
-    decks.B.trackSelectEl.addEventListener('change', (e) => loadDeck('B', parseInt(e.target.value)));
-    decks.B.playBtn.addEventListener('click', () => playDeck('B'));
-    decks.B.stopBtn.addEventListener('click', () => stopDeck('B'));
-    decks.B.cueBtn.addEventListener('click', () => cueDeck('B'));
-    decks.B.pitch.addEventListener('input', (e) => updatePitch('B', parseFloat(e.target.value)));
-    decks.B.vol.addEventListener('input',   (e) => updateVolume('B', parseFloat(e.target.value)));
-    decks.B.eqLow.addEventListener('input', (e) => updateEQ('B','low', parseFloat(e.target.value)));
-    decks.B.eqMid.addEventListener('input', (e) => updateEQ('B','mid', parseFloat(e.target.value)));
-    decks.B.eqHigh.addEventListener('input',(e) => updateEQ('B','high',parseFloat(e.target.value)));
+            newSource.start(0, deckState.playbackPos);
 
-    /* Crossfader drag — SCALE-AWARE so it reaches both ends even when app is scaled */
-    let isDraggingX = false;
-    const HANDLE_HALF = 15; // 30px / 2
+            newSource.onended = () => {
+                if (deckState.isCueing) {
+                    // Stop cued track when it ends
+                    stopDeck(deckId); 
+                    deckState.isCueing = false;
+                    deck.cueBtn.classList.remove('active');
+                    deckState.cueNode.gain.value = 0.0;
+                }
+            };
+        }
 
-    crossfaderHandle.addEventListener('mousedown', (e)=>{ e.preventDefault(); isDraggingX=true; });
-    document.addEventListener('mouseup',  ()=>{ isDraggingX=false; });
-    document.addEventListener('mousemove',(e)=>{
-      if (!isDraggingX) return;
-      const rect = crossfaderRail.getBoundingClientRect();         // scaled size
-      const railCSSWidth = crossfaderRail.offsetWidth;              // unscaled CSS width
-      let xScaled = e.clientX - rect.left;                          // scaled pixels
-      xScaled = Math.max(0, Math.min(xScaled, rect.width));         // clamp in scaled space
-      const value = xScaled / rect.width;                           // normalized 0..1
-      updateCrossfader(value);
-      const leftCSS = value * railCSSWidth - HANDLE_HALF;           // convert to CSS pixels
-      crossfaderHandle.style.left = `${leftCSS}px`;
-    });
+        function updateDeckTime(deckState) {
+            if (!deckState.isPlaying || !deckState.buffer) return;
 
-    crossfaderHandle.addEventListener('touchstart',(e)=>{
-      // If multi-touch, allow pinch-zoom; don't capture
-      if (e.touches && e.touches.length > 1) return;
-      e.preventDefault(); isDraggingX=true;
-    }, {passive:false});
+            const timeElapsed = audioCtx.currentTime - deckState.lastUpdateTime;
+            deckState.lastUpdateTime = audioCtx.currentTime;
 
-    document.addEventListener('touchmove',(e)=>{
-      if (!isDraggingX || !e.touches || !e.touches.length) return;
-      // Let multi-touch go for pinch-zoom
-      if (e.touches.length > 1) return;
-      const rect = crossfaderRail.getBoundingClientRect();
-      const railCSSWidth = crossfaderRail.offsetWidth;
-      let xScaled = e.touches[0].clientX - rect.left;
-      xScaled = Math.max(0, Math.min(xScaled, rect.width));
-      const value = xScaled / rect.width;
-      updateCrossfader(value);
-      const leftCSS = value * railCSSWidth - HANDLE_HALF;
-      crossfaderHandle.style.left = `${leftCSS}px`;
-    }, {passive:false});
-    document.addEventListener('touchend', ()=>{ isDraggingX=false; });
+            const rate = deckState.rateNode ? deckState.rateNode.value : 1.0;
+            deckState.playbackPos = (deckState.playbackPos + timeElapsed * rate) % deckState.buffer.duration;
+            if (deckState.playbackPos < 0) {
+                deckState.playbackPos += deckState.buffer.duration;
+            }
+        }
 
-    /* Turntable input */
-    const turntableListeners = (deckId)=>{
-      const el = decks[deckId].recordEl;
-      el.addEventListener('mousedown', (e)=>handleStart(e, deckId));
-      el.addEventListener('touchstart',(e)=>handleStart(e, deckId), {passive:false});
-      el.addEventListener('click', (e)=>{ if (!decks[deckId].state.hasMoved) jumpToPosition(deckId, e); });
-    };
-    turntableListeners('A'); turntableListeners('B');
+        function updatePitch(deckId, value) {
+            const deckState = decks[deckId].state;
+            deckState.rate = value;
+            if (deckState.source) {
+                deckState.rateNode.linearRampToValueAtTime(value, audioCtx.currentTime + 0.05); // Smooth transition
+            }
+        }
 
-    document.addEventListener('mousemove', handleMove);
-    document.addEventListener('touchmove', handleMove, {passive:false});
-    document.addEventListener('mouseup', ()=>{ if (activeDeck) handleEnd(activeDeck.id); });
-    document.addEventListener('touchend',()=>{ if (activeDeck) handleEnd(activeDeck.id); });
+        function updateVolume(deckId, value) {
+            const deckState = decks[deckId].state;
+            // Only update master gain if not cueing
+            if (!deckState.isCueing) {
+                deckState.gain.gain.linearRampToValueAtTime(value, audioCtx.currentTime + 0.05);
+            }
+        }
 
-    document.body.addEventListener('click', initAudio, {once:true});
-    document.body.addEventListener('touchstart', initAudio, {once:true});
+        function updateEQ(deckId, filterType, value) {
+            const deckState = decks[deckId].state;
+            deckState.eq[filterType].gain.linearRampToValueAtTime(value, audioCtx.currentTime + 0.05);
+        }
 
-    /* --------- SCALE ENGINE (always fills; allows upscaling) ---------
-       Uses min(scaleX, scaleY) WITHOUT clamping to 1, so it grows on large screens.
-       Pinch-zoom still works because we don't block multi-touch and viewport allows scaling.
-    ------------------------------------------------------------------*/
+        function updateMasterVol(value) {
+            masterVolGain.gain.linearRampToValueAtTime(value, audioCtx.currentTime + 0.05);
+        }
+
+        function updateHPMix(value) {
+            // HP Mix: 0 = 100% Cue, 1 = 100% Master
+            const masterVol = value;
+            const cueVol = 1.0 - value;
+
+            masterPreListen.gain.value = masterVol;
+        }
+
+        function updateCrossfader(value) {
+            // Value is 0 (Deck A) to 1 (Deck B)
+            // Power curve: sin(x * PI/2)
+            const aGain = Math.cos(value * 0.5 * Math.PI);
+            const bGain = Math.cos((1.0 - value) * 0.5 * Math.PI);
+
+            crossfaderGainA.gain.value = aGain;
+            crossfaderGainB.gain.value = bGain;
+        }
+
+        function updateFilterFreq(value) {
+            masterFilter.frequency.linearRampToValueAtTime(value, audioCtx.currentTime + 0.05);
+        }
+
+        function updateDelayFeedback(value) {
+            feedbackGain.gain.linearRampToValueAtTime(value, audioCtx.currentTime + 0.05);
+        }
+
+        function updateDelayTime(value) {
+            delayNode.delayTime.linearRampToValueAtTime(value, audioCtx.currentTime + 0.05);
+        }
+
+        function updateFXWetDry(fx, value) {
+            if (fx === 'delay') {
+                delayWetGain.gain.linearRampToValueAtTime(value, audioCtx.currentTime + 0.05);
+            } else if (fx === 'reverb') {
+                reverbWetGain.gain.linearRampToValueAtTime(value, audioCtx.currentTime + 0.05);
+            }
+        }
+
+        function updateVUMeter() {
+            if (!analyserNode) return;
+            const bufferLength = analyserNode.frequencyBinCount;
+            const dataArray = new Uint8Array(bufferLength);
+            analyserNode.getByteFrequencyData(dataArray);
+
+            let sum = 0;
+            for(let i = 0; i < bufferLength; i++) {
+                sum += dataArray[i] * i; // quick visual approximation
+            }
+            const norm = Math.min(10, Math.max(0, Math.ceil(sum / (bufferLength * 100))));
+
+            vuSegments.forEach((segment, index) => {
+                const segmentLevel = 10 - index; 
+                if (segmentLevel <= norm) {
+                    segment.classList.add('on');
+                } else {
+                    segment.classList.remove('on');
+                }
+            });
+        }
+
+        // --- VISUAL LOOP ---
+        function update() {
+            updateDeckTime(DECK_A);
+            updateDeckTime(DECK_B);
+            updateRecordRotation(DECK_A);
+            updateRecordRotation(DECK_B);
+
+            // --- VU ---
+            updateVUMeter();
+
+            animationFrameId = requestAnimationFrame(update);
+        }
+
+        function updateRecordRotation(deckState) {
+            if (!deckState.buffer) return;
+            
+            let rate = 0;
+            if (deckState.isDragging) {
+                rate = deckState.scratchRate;
+            } else if (deckState.isPlaying) {
+                rate = deckState.rateNode ? deckState.rateNode.value : 1.0;
+            }
+            
+            const rotationSpeed = rate * 360; 
+            const timeDelta = (audioCtx.currentTime - deckState.lastUpdateTime);
+
+            if(rate !== 0) {
+                deckState.currentRotation += rotationSpeed * timeDelta;
+                deckState.currentRotation %= 360; 
+            }
+            
+            const deck = decks[deckState.id].recordEl;
+            deck.style.transform = `rotate(${deckState.currentRotation}deg)`;
+        }
+
+        // --- TONE ARM / POSITION JUMP FUNCTIONALITY (click-to-jump on record) ---
+        function jumpToPosition(deckId, e) {
+            const deck = decks[deckId];
+            const deckState = deck.state;
+            const recordEl = deck.recordEl;
+
+            if (!deckState.buffer) return;
+
+            const rect = recordEl.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+            const radius = rect.width / 2;
+
+            const clientX = e.clientX || (e.touches && e.touches[0] ? e.touches[0].clientX : e.clientX);
+            const clientY = e.clientY || (e.touches && e.touches[0] ? e.touches[0].clientY : e.clientY);
+
+            const dx = clientX - centerX;
+            const dy = clientY - centerY;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+
+            let normalizedDistance = distance / radius;
+            
+            const PADDING = RECORD_PADDING_PERCENT;
+            let trackPercentage = (normalizedDistance - PADDING) / (1 - 2 * PADDING);
+            trackPercentage = Math.max(0, Math.min(1, trackPercentage)); 
+
+            const newPos = trackPercentage * deckState.buffer.duration;
+            deckState.playbackPos = newPos;
+
+            if (deckState.source) {
+                deckState.source.stop();
+                deckState.source.disconnect();
+                deckState.source = null;
+            }
+            
+            const newSource = audioCtx.createBufferSource();
+            newSource.buffer = deckState.buffer;
+            newSource.connect(deckState.eq.low);
+            newSource.playbackRate.value = deckState.rate || 1.0; 
+            deckState.rateNode = newSource.playbackRate;
+
+            deckState.source = newSource;
+            deckState.isPlaying = true;
+            deckState.lastUpdateTime = audioCtx.currentTime;
+
+            newSource.start(0, deckState.playbackPos);
+            
+            newSource.onended = () => {
+                if (deckState.isPlaying && !deckState.isCueing) {
+                    stopDeck(deckId);
+                }
+            };
+
+            if (!deckState.isCueing) {
+                deck.light.classList.add('active');
+            }
+        }
+
+
+        // --- INTERACTION HANDLERS (Scratching) ---
+        let activeDeck = null;
+
+        function handleStart(e, deckId) {
+            e.preventDefault();
+            initAudio(); // Initialize context on first interaction
+
+            const deck = decks[deckId];
+            const deckState = deck.state;
+
+            if (!deckState.buffer) return;
+
+            deckState.isDragging = true;
+            activeDeck = deck;
+            deckState.hasMoved = false; 
+            
+            if (deckState.source) {
+                deckState.source.stop();
+                deckState.source.disconnect();
+                deckState.source = null;
+            }
+
+            deckState.rotationStartClientX = e.clientX || e.touches[0].clientX;
+            deckState.scratchRate = 0;
+            
+            deckState.eq.scratch.frequency.linearRampToValueAtTime(6000, audioCtx.currentTime + 0.01);
+
+            const newSource = audioCtx.createBufferSource();
+            newSource.buffer = deckState.buffer;
+            newSource.connect(deckState.eq.low);
+            newSource.playbackRate.value = 0; 
+            deckState.rateNode = newSource.playbackRate;
+
+            deckState.source = newSource;
+            deckState.isPlaying = true; 
+            deckState.lastUpdateTime = audioCtx.currentTime;
+
+            newSource.start(0, deckState.playbackPos);
+        }
+
+        function handleMove(e) {
+            if (!activeDeck || !activeDeck.state.isDragging) return;
+            e.preventDefault();
+
+            const deck = activeDeck;
+            const deckState = deck.state;
+
+            const clientX = e.clientX || (e.touches.length > 0 ? e.touches[0].clientX : null);
+            if (clientX === null) return;
+            
+            deckState.hasMoved = true; 
+
+            const diffX = clientX - deckState.rotationStartClientX;
+            deckState.rotationStartClientX = clientX; 
+
+            const sensitivity = 0.5;
+            const rotationChange = diffX * sensitivity; 
+            const rateChange = rotationChange / 360; 
+            
+            deckState.scratchRate = rateChange * 10; 
+            deckState.currentRotation += rotationChange;
+            deckState.currentRotation %= 360; 
+
+            const playbackChange = rotationChange * deckState.buffer.duration * 0.0027777777777778; 
+            deckState.playbackPos = (deckState.playbackPos + playbackChange) % deckState.buffer.duration;
+            if (deckState.playbackPos < 0) {
+                deckState.playbackPos += deckState.buffer.duration;
+            }
+
+            if (deckState.source) {
+                deckState.rateNode.value = deckState.scratchRate;
+            }
+        }
+
+        function handleEnd(deckId) {
+            const deck = decks[deckId];
+            const deckState = deck.state;
+
+            if (!deckState.isDragging) return;
+
+            deckState.isDragging = false;
+            activeDeck = null;
+
+            deckState.eq.scratch.frequency.linearRampToValueAtTime(20, audioCtx.currentTime + 0.1);
+
+            if (!deckState.hasMoved) {
+                return; 
+            }
+            
+            if (deckState.source) {
+                deckState.source.stop();
+                deckState.source.disconnect();
+                deckState.source = null;
+            }
+            
+            const newSource = audioCtx.createBufferSource();
+            newSource.buffer = deckState.buffer;
+            newSource.connect(deckState.eq.low);
+            newSource.playbackRate.value = deckState.rate || 1.0; 
+            deckState.rateNode = newSource.playbackRate;
+
+            deckState.source = newSource;
+            deckState.isPlaying = true;
+            deckState.lastUpdateTime = audioCtx.currentTime;
+
+            newSource.start(0, deckState.playbackPos);
+
+            newSource.onended = () => {
+                if (deckState.isPlaying && !deckState.isCueing) {
+                    stopDeck(deckId);
+                }
+            };
+        }
+
+        // --- EVENT LISTENERS ---
+        
+        // Initial file loading
+        loadFilesBtn.addEventListener('click', () => {
+            musicFilesInput.click();
+        });
+        musicFilesInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                loadTrack(e.target.files);
+            }
+        });
+
+        // Deck A Events
+        decks.A.trackSelectEl.addEventListener('change', (e) => loadDeck('A', parseInt(e.target.value)));
+        decks.A.playBtn.addEventListener('click', () => playDeck('A'));
+        decks.A.stopBtn.addEventListener('click', () => stopDeck('A'));
+        decks.A.cueBtn.addEventListener('click', () => cueDeck('A'));
+        decks.A.pitch.addEventListener('input', (e) => updatePitch('A', parseFloat(e.target.value)));
+        decks.A.vol.addEventListener('input', (e) => updateVolume('A', parseFloat(e.target.value)));
+        decks.A.eqLow.addEventListener('input', (e) => updateEQ('A', 'low', parseFloat(e.target.value)));
+        decks.A.eqMid.addEventListener('input', (e) => updateEQ('A', 'mid', parseFloat(e.target.value)));
+        decks.A.eqHigh.addEventListener('input', (e) => updateEQ('A', 'high', parseFloat(e.target.value)));
+
+        // Deck B Events
+        decks.B.trackSelectEl.addEventListener('change', (e) => loadDeck('B', parseInt(e.target.value)));
+        decks.B.playBtn.addEventListener('click', () => playDeck('B'));
+        decks.B.stopBtn.addEventListener('click', () => stopDeck('B'));
+        decks.B.cueBtn.addEventListener('click', () => cueDeck('B'));
+        decks.B.pitch.addEventListener('input', (e) => updatePitch('B', parseFloat(e.target.value)));
+        decks.B.vol.addEventListener('input', (e) => updateVolume('B', parseFloat(e.target.value)));
+        decks.B.eqLow.addEventListener('input', (e) => updateEQ('B', 'low', parseFloat(e.target.value)));
+        decks.B.eqMid.addEventListener('input', (e) => updateEQ('B', 'mid', parseFloat(e.target.value)));
+        decks.B.eqHigh.addEventListener('input', (e) => updateEQ('B', 'high', parseFloat(e.target.value)));
+
+        // Mixer & FX Events
+        masterVolControl.addEventListener('input', (e) => updateMasterVol(parseFloat(e.target.value)));
+        hpVolControl.addEventListener('input', () => {
+            if (cueGain) cueGain.gain.linearRampToValueAtTime(parseFloat(hpVolControl.value), audioCtx.currentTime + 0.05);
+        });
+        hpMixControl.addEventListener('input', (e) => updateHPMix(parseFloat(e.target.value)));
+
+        masterFilterFreq.addEventListener('input', (e) => updateFilterFreq(parseFloat(e.target.value)));
+        delayFeedbackControl.addEventListener('input', (e) => updateDelayFeedback(parseFloat(e.target.value)));
+        delayTimeActualControl.addEventListener('input', (e) => updateDelayTime(parseFloat(e.target.value)));
+        delayWetDryControl.addEventListener('input', (e) => updateFXWetDry('delay', parseFloat(e.target.value)));
+        reverbWetDryControl.addEventListener('input', (e) => updateFXWetDry('reverb', parseFloat(e.target.value)));
+
+        // --- CROSSFADER LOGIC (Drag/Touch) ---
+        let isDraggingCrossfader = false;
+
+        crossfaderHandle.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            isDraggingCrossfader = true;
+        });
+        document.addEventListener('mouseup', () => { isDraggingCrossfader = false; });
+        document.addEventListener('mousemove', (e) => {
+            if (!isDraggingCrossfader) return;
+            const rect = crossfaderRail.getBoundingClientRect();
+            let x = e.clientX - rect.left;
+            x = Math.max(0, Math.min(x, rect.width));
+            const value = x / rect.width;
+            updateCrossfader(value);
+            crossfaderHandle.style.left = `${x - 15}px`; 
+        });
+
+        crossfaderHandle.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            isDraggingCrossfader = true;
+        }, { passive: false });
+        document.addEventListener('touchmove', (e) => {
+            if (!isDraggingCrossfader || e.touches.length === 0) return;
+            const rect = crossfaderRail.getBoundingClientRect();
+            let x = e.touches[0].clientX - rect.left;
+            x = Math.max(0, Math.min(x, rect.width));
+            const value = x / rect.width;
+            updateCrossfader(value);
+            crossfaderHandle.style.left = `${x - 15}px`;
+        }, { passive: false });
+        document.addEventListener('touchend', () => { isDraggingCrossfader = false; });
+
+        // --- TURNTABLE SCRATCH/JUMP LISTENERS ---
+        const turntableListeners = (deckId) => {
+            const deckEl = decks[deckId].recordEl;
+            deckEl.addEventListener('mousedown', (e) => handleStart(e, deckId));
+            deckEl.addEventListener('touchstart', (e) => handleStart(e, deckId), { passive: false });
+            deckEl.addEventListener('click', (e) => {
+                if (!decks[deckId].state.hasMoved) {
+                    jumpToPosition(deckId, e);
+                }
+            });
+        };
+        turntableListeners('A');
+        turntableListeners('B');
+        
+        // General move/end listeners for both decks
+        document.addEventListener('mousemove', handleMove);
+        document.addEventListener('touchmove', handleMove, { passive: false });
+        document.addEventListener('mouseup', () => { 
+            if(activeDeck) handleEnd(activeDeck.id); 
+        });
+        document.addEventListener('touchend', () => { 
+            if(activeDeck) handleEnd(activeDeck.id); 
+        });
+
+        // Auto-initialize audio context on first click/touch on the body
+        document.body.addEventListener('click', initAudio, { once: true });
+        document.body.addEventListener('touchstart', initAudio, { once: true });
+
+        // Keep layout responsive
+        window.addEventListener('resize', () => {});
+    </script>
+
+    <!-- Stylus add-on JS (non-destructive). Creates a 3 o'clock horizontal stylus per .record. -->
+    <script>
     (function(){
-      const SHELL   = document.getElementById('app-scale-shell');
-      const APP     = document.querySelector('.dj-container');
-      const BASE_W  = 1200;
-
-      function applyScale(){
-        // Reset to measure intrinsic height at CSS scale 1
-        SHELL.style.transform = 'scale(1)';
-        APP.style.width = BASE_W + 'px';
-
-        const baseRect = APP.getBoundingClientRect();
-        const baseH = baseRect.height;
-
-        const availW = Math.max(1, window.innerWidth);
-        const availH = Math.max(1, window.innerHeight);
-
-        const sW = availW / BASE_W;
-        const sH = availH / baseH;
-
-        const s = Math.min(sW, sH); // allow >1 upscaling
-
-        SHELL.style.transform = `scale(${s})`;
-        SHELL.style.width  = (BASE_W * s) + 'px';
-        SHELL.style.height = (baseH  * s) + 'px';
-      }
-
-      window.addEventListener('resize', applyScale);
-      window.addEventListener('orientationchange', applyScale);
-      document.addEventListener('DOMContentLoaded', ()=>{ setTimeout(applyScale, 0); });
-    })();
-  </script>
-
-  <!-- Stylus add-on JS (triangle only; no rail; label safety gap) -->
-  <script>
-    (function(){
-      var SAFE_GAP_PX = 6; // keep tip off the label
-
       function computeTravelPx(record){
-        var w = record.clientWidth;
-        var radius = w / 2;
+        var recRect = record.getBoundingClientRect();
+        var radius = recRect.width / 2;
         var label = record.querySelector('.record-label');
         var labelR = 0;
-        if (label){ labelR = label.clientWidth / 2; }
-        var span = Math.max(10, Math.floor((radius - labelR) - SAFE_GAP_PX));
+        if(label){
+          var labRect = label.getBoundingClientRect();
+          labelR = labRect.width / 2;
+        }
+        var span = Math.max(10, Math.floor(radius - labelR));
         return span;
       }
 
       function createStylus(record){
         var label = record.querySelector('.record-label');
-        if (!label) return;
+        if(!label) return;
 
-        var slider = document.createElement('div');
-        slider.className = 'stylus-slider';
+        var slider=document.createElement('div');
+        slider.className='stylus-slider';
         slider.style.width = computeTravelPx(record) + 'px';
 
-        var hit = document.createElement('div');
-        hit.className = 'stylus-hitbox';
-        var handle = document.createElement('div');
-        handle.className = 'stylus-handle';
-        hit.appendChild(handle);
-        slider.appendChild(hit);
+        var rail=document.createElement('div');
+        rail.className='stylus-rail';
+        var hit=document.createElement('div');
+        hit.className='stylus-hitbox';
+        var handle=document.createElement('div');
+        handle.className='stylus-handle';
+        hit.appendChild(handle); slider.appendChild(rail); slider.appendChild(hit);
         record.appendChild(slider);
 
-        var dragging = false, value = 0; // 0=outer rim, 1=label rim
+        var dragging=false, value=0; // 0=start (outer rim), 1=end (label rim)
 
         function render(){
-          var w = slider.clientWidth;
-          var hw = 24;
-          var x = (1 - value) * w - hw/2;
-          if (x < -hw/2) x = -hw/2;
-          if (x >  w - hw/2) x = w - hw/2;
+          var w=rail.offsetWidth, hw=24;
+          var x=(1-value)*w - hw/2;
+          if(x < -hw/2) x = -hw/2;
+          if(x > w-hw/2) x = w-hw/2;
           hit.style.left = x + 'px';
         }
 
         function apply(){
           var deckRoot = record.closest('[id^="deck"]');
-          var deckId   = deckRoot ? deckRoot.id.replace('deck','').toUpperCase() : null;
-
-          if (deckId && window.decks && window.audioCtx){
+          var deckId = deckRoot ? deckRoot.id.replace('deck','').toUpperCase() : null;
+          if(deckId && window.decks && window.audioCtx){
             var st = window.decks[deckId].state;
-            if (!st || !st.buffer) return;
-
-            if (st.source){ try{ st.source.stop(); st.source.disconnect(); }catch(e){} st.source=null; }
-
-            if (value >= 0.999){
-              if (typeof window.stopDeck === 'function') window.stopDeck(deckId);
+            if(!st || !st.buffer) return;
+            if(st.source){ try{ st.source.stop(); st.source.disconnect(); }catch(e){} st.source=null; }
+            if(value >= 0.999){
+              if(typeof window.stopDeck === 'function') window.stopDeck(deckId);
               return;
             }
-
             st.playbackPos = value * st.buffer.duration;
             var src = audioCtx.createBufferSource();
             src.buffer = st.buffer;
             src.connect(st.eq.low);
             src.playbackRate.value = st.rate || 1.0;
             st.rateNode = src.playbackRate;
-            st.source = src; st.isPlaying = true; st.lastUpdateTime = audioCtx.currentTime;
+            st.source = src;
+            st.isPlaying = true;
+            st.lastUpdateTime = audioCtx.currentTime;
             src.start(0, st.playbackPos);
             src.onended = function(){
-              if (st.isPlaying && !st.isCueing && typeof window.stopDeck === 'function'){
+              if(st.isPlaying && !st.isCueing && typeof window.stopDeck === 'function'){
                 window.stopDeck(deckId);
               }
             };
           } else {
-            record.dispatchEvent(new CustomEvent('stylus-scrub', { detail:{ fraction:value, element:record } }));
+            record.dispatchEvent(new CustomEvent('stylus-scrub', { detail: { fraction: value, element: record } }));
           }
         }
 
@@ -954,9 +1522,9 @@ scratcher22-scale-fill-pinch.html
           try{
             var deckRoot = record.closest('[id^="deck"]');
             var deckId = deckRoot ? deckRoot.id.replace('deck','').toUpperCase() : null;
-            if (deckId && window.decks){
+            if(deckId && window.decks){
               var st = window.decks[deckId].state;
-              if (st && st.buffer && !dragging){
+              if(st && st.buffer && !dragging){
                 value = st.playbackPos / st.buffer.duration;
                 render();
               }
@@ -964,37 +1532,33 @@ scratcher22-scale-fill-pinch.html
           }catch(e){}
         }
 
-        function start(e){
-          if (e.touches && e.touches.length > 1) return; // allow pinch-zoom
-          e.preventDefault(); dragging = true;
-        }
+        function start(e){ e.preventDefault(); dragging=true; }
         function move(clientX){
-          if (!dragging) return;
-          var rect = slider.getBoundingClientRect();
+          if(!dragging) return;
+          var rect = rail.getBoundingClientRect();
           var x = Math.max(0, Math.min(clientX - rect.left, rect.width));
           value = 1 - (x / rect.width);
           render();
         }
-        function end(){ if (!dragging) return; dragging = false; apply(); }
+        function end(){ if(!dragging) return; dragging=false; apply(); }
 
         hit.addEventListener('mousedown', function(e){ start(e); });
         document.addEventListener('mousemove', function(e){ move(e.clientX); });
         document.addEventListener('mouseup', end);
 
         hit.addEventListener('touchstart', function(e){ start(e); }, { passive:false });
-        document.addEventListener('touchmove', function(e){
-          if(e.touches && e.touches.length > 1) return; // let pinch zoom
-          if(e.touches && e.touches.length){ move(e.touches[0].clientX); }
-        }, { passive:false });
+        document.addEventListener('touchmove', function(e){ if(e.touches && e.touches.length){ move(e.touches[0].clientX); } }, { passive:false });
         document.addEventListener('touchend', end);
 
-        slider.addEventListener('click', function(e){
-          var rect = slider.getBoundingClientRect();
+        rail.addEventListener('click', function(e){
+          var rect = rail.getBoundingClientRect();
           var x = Math.max(0, Math.min(e.clientX - rect.left, rect.width));
           value = 1 - (x / rect.width);
-          render(); apply();
+          render();
+          apply();
         });
 
+        // keep width correct on resize
         function resize(){ slider.style.width = computeTravelPx(record) + 'px'; render(); }
         window.addEventListener('resize', resize);
 
@@ -1003,9 +1567,13 @@ scratcher22-scale-fill-pinch.html
         render();
       }
 
-      function boot(){ document.querySelectorAll('.record').forEach(createStylus); }
-      if (document.readyState === 'loading'){ document.addEventListener('DOMContentLoaded', boot); } else { boot(); }
+      function boot(){
+        document.querySelectorAll('.record').forEach(function(record){
+          createStylus(record);
+        });
+      }
+      if(document.readyState === 'loading'){ document.addEventListener('DOMContentLoaded', boot); } else { boot(); }
     })();
-  </script>
+    </script>
 </body>
 </html>

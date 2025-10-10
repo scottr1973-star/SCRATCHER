@@ -2,8 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <!-- Allow pinch-zoom on mobile (iOS especially) -->
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=10, user-scalable=yes" />
+  <meta name="viewport" content="width=device-width, initial-scale=10, maximum-scale=10, user-scalable=yes" />
   <title>Scratcher - Pro Turntable Controller</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
@@ -29,9 +28,9 @@
       background:var(--bg-dark);
       color:#E2E8F0;
       font-family:'Inter', sans-serif;
-      overflow:hidden;                         /* app auto-fits; pinch-zoom allowed */
+      overflow:hidden;
       display:flex; align-items:center; justify-content:center;
-      touch-action:auto;                       /* don’t block pinch */
+      touch-action:auto;
     }
 
     #app-scale-shell{ position:relative; transform-origin:top left; will-change:transform,width,height; }
@@ -58,13 +57,13 @@
       box-shadow:inset 0 0 10px rgba(0,0,0,.5); border:1px solid #475569;
     }
     .file-loader-group{ display:flex; align-items:center; gap:10px; }
-    #loadingStatus{ order:3; width:100%; margin-top:5px; text-align:right; }
+    #loadingStatus{ order:3; width:100%; margin-top:5px; text-align:right; white-space:pre-line; }
 
     .track-display-window{
       width:100%; height:30px; margin-bottom:5px; padding:4px 6px;
       background:#020617; border:3px solid var(--accent); border-radius:6px;
       display:flex; align-items:center; justify-content:center;
-      color:var(--accent); font-family:'Orbitron', monospace; font-size:13px;
+      color:#38BDF8; font-family:'Orbitron', monospace; font-size:13px;
       box-shadow:var(--accent-glow), inset 0 0 15px rgba(0,0,0,.8);
     }
 
@@ -97,6 +96,7 @@
       position:absolute; inset:0; border-radius:50%; background:var(--record-surface);
       border:4px solid #475569; box-shadow:0 0 20px rgba(0,0,0,.9) inset, 0 8px 15px rgba(0,0,0,.6);
       cursor:grab; will-change:transform;
+      touch-action:none;
     }
     .record-label{
       position:absolute; top:50%; left:50%; transform:translate(-50%, -50%);
@@ -153,12 +153,12 @@
     .fx-control{ margin-top:5px; }
   </style>
 
-  <!-- Stylus (triangle only, slightly below 3 o’clock; anchored to plate so it DOESN'T ROTATE) -->
+  <!-- Stylus (triangle; fixed at ~3 o’clock, slightly lowered and nudged left) -->
   <style id="stylus-addon">
     .stylus-slider{
       position:absolute;
-      top:calc(50% + 4px);  /* nudge down a few px */
-      right:-6px;           /* slight right nudge */
+      top:calc(50% + 4px);
+      right:-2px;            /* nudged left */
       transform:translateY(-50%);
       height:20px;
       pointer-events:none;
@@ -183,9 +183,8 @@
         <h1 class="app-title">SCRATCHER</h1>
         <div class="file-loader-group">
           <label class="text-sm font-semibold text-sky-400">LOAD YOUR MUSIC FOLDERS:</label>
-          <!-- Legacy folder input -->
+          <!-- Hidden inputs -->
           <input type="file" id="musicFiles" multiple webkitdirectory directory style="display:none;">
-          <!-- Plain multiple file input -->
           <input type="file" id="filePicker" multiple
                  accept=".wav,.wave,.aif,.aiff,.mp3,.m4a,.aac,.flac,.ogg,.oga,.opus,audio/*"
                  style="display:none;">
@@ -344,15 +343,15 @@
     let masterPreListen;
     let analyserNode;
 
-    const DECK_A = { id:'A', trackIndex:-1, buffer:null, source:null, gain:null, rate:null, isPlaying:false, playbackPos:0, lastUpdateTime:0, currentRotation:0, _rotLast:0, rotationStartClientX:0, eq:{low:null,mid:null,high:null,scratch:null}, isCueing:false, cueNode:null, hasMoved:false, isDragging:false, scratchRate:0, rateNode:null };
-    const DECK_B = { id:'B', trackIndex:-1, buffer:null, source:null, gain:null, rate:null, isPlaying:false, playbackPos:0, lastUpdateTime:0, currentRotation:0, _rotLast:0, rotationStartClientX:0, eq:{low:null,mid:null,high:null,scratch:null}, isCueing:false, cueNode:null, hasMoved:false, isDragging:false, scratchRate:0, rateNode:null };
+    const DECK_A = { id:'A', trackIndex:-1, buffer:null, source:null, gain:null, rate:1.0, isPlaying:false, playbackPos:0, lastUpdateTime:0, currentRotation:0, _rotLast:0, eq:{low:null,mid:null,high:null,scratch:null}, isCueing:false, cueNode:null, hasMoved:false, isDragging:false, startAngle:0, baseRotation:0, accumAngle:0, startPlaybackPos:0, manualRotate:false, rateNode:null };
+    const DECK_B = { id:'B', trackIndex:-1, buffer:null, source:null, gain:null, rate:1.0, isPlaying:false, playbackPos:0, lastUpdateTime:0, currentRotation:0, _rotLast:0, eq:{low:null,mid:null,high:null,scratch:null}, isCueing:false, cueNode:null, hasMoved:false, isDragging:false, startAngle:0, baseRotation:0, accumAngle:0, startPlaybackPos:0, manualRotate:false, rateNode:null };
 
     const $ = id => document.getElementById(id);
     const decks = {
       A:{ state:DECK_A, recordEl:$('recordA'), trackSelectEl:$('trackSelectA'), playBtn:$('playA'), stopBtn:$('stopA'), cueBtn:$('cueA'), light:$('lightA'), status:$('statusA'), pitch:$('pitchA'), vol:$('volA'), eqLow:$('eqLowA'), eqMid:$('eqMidA'), eqHigh:$('eqHighA') },
       B:{ state:DECK_B, recordEl:$('recordB'), trackSelectEl:$('trackSelectB'), playBtn:$('playB'), stopBtn:$('stopB'), cueBtn:$('cueB'), light:$('lightB'), status:$('statusB'), pitch:$('pitchB'), vol:$('volB'), eqLow:$('eqLowB'), eqMid:$('eqMidB'), eqHigh:$('eqHighB') },
     };
-    window.decks = decks; // used by stylus module
+    window.decks = decks;
 
     const crossfaderHandle = $('crossfaderHandle');
     const crossfaderRail   = $('crossfaderRail');
@@ -373,6 +372,7 @@
 
     const BLANK_DISPLAY_TEXT = '---';
     const RECORD_PADDING_PERCENT = 0.1;
+    const SECS_PER_REV = 60/33.333; // ≈1.8s per full revolution (vinyl feel)
 
     function initAudio(){
       if (audioCtx) return;
@@ -383,7 +383,7 @@
       cueGain.connect(audioCtx.destination);
 
       masterPreListen = audioCtx.createGain();
-      updateHPMix(parseFloat(hpMixControl.value));
+      updateHPMix(parseFloat(hpMixControl.value)); // 0..1 to cue bus
       masterPreListen.connect(cueGain);
 
       masterOutGain = audioCtx.createGain();
@@ -398,13 +398,13 @@
       masterFilter.Q.value = .5;
 
       delayNode = audioCtx.createDelay(1.0);
-      delayNode.delayTime.value = parseFloat(delayTimeActualControl ? delayTimeActualControl.value : 0.3);
+      delayNode.delayTime.value = parseFloat(delayTimeActualControl.value);
 
       feedbackGain = audioCtx.createGain();
-      feedbackGain.gain.value = parseFloat(delayFeedbackControl ? delayFeedbackControl.value : 0.3);
+      feedbackGain.gain.value = parseFloat(delayFeedbackControl.value);
 
       delayWetGain = audioCtx.createGain();
-      delayWetGain.gain.value = 0.0;
+      delayWetGain.gain.value = parseFloat(delayWetDryControl.value);
 
       reverbLowPass = audioCtx.createBiquadFilter();
       reverbLowPass.type = 'lowpass';
@@ -415,16 +415,19 @@
       reverbDelay.delayTime.value = .05;
 
       reverbWetGain = audioCtx.createGain();
-      reverbWetGain.gain.value = 0.0;
+      reverbWetGain.gain.value = parseFloat(reverbWetDryControl.value);
 
+      // Delay FX chain
       delayNode.connect(feedbackGain);
       feedbackGain.connect(delayNode);
       delayNode.connect(delayWetGain);
 
+      // Simple "reverb-ish" slap
       masterFilter.connect(reverbDelay);
       reverbDelay.connect(reverbLowPass);
       reverbLowPass.connect(reverbWetGain);
 
+      // Master bus routing
       masterOutGain.connect(delayNode);
       masterOutGain.connect(masterFilter);
 
@@ -433,7 +436,7 @@
       reverbWetGain.connect(masterVolGain);
 
       masterVolGain.connect(audioCtx.destination);
-      masterVolGain.connect(masterPreListen);
+      masterVolGain.connect(masterPreListen); // feed HP bus pre-listen level
 
       analyserNode = audioCtx.createAnalyser();
       analyserNode.fftSize = 256;
@@ -457,10 +460,10 @@
       deckState.gain = audioCtx.createGain();
       deckState.gain.gain.value = parseFloat($('vol'+deckState.id).value);
       deckState.gain.connect(crossfaderGain);
-
+      // Also route to HP bus through cueNode when cue enabled
       deckState.cueNode = audioCtx.createGain();
       deckState.cueNode.gain.value = 0.0;
-      deckState.cueNode.connect(cueGain);
+      deckState.cueNode.connect(masterPreListen);
 
       const eqLow  = audioCtx.createBiquadFilter();  eqLow.type='lowshelf';  eqLow.frequency.value=320;  eqLow.gain.value=parseFloat($('eqLow'+deckState.id).value);
       const eqMid  = audioCtx.createBiquadFilter();  eqMid.type='peaking';   eqMid.frequency.value=1000; eqMid.Q.value=1.0; eqMid.gain.value=parseFloat($('eqMid'+deckState.id).value);
@@ -492,7 +495,7 @@
       if (st.source){ st.source.stop(); st.source.disconnect(); st.source=null; }
       if (idx === -1 || idx >= TRACKS.length){ st.trackIndex=-1; st.buffer=null; deck.status.textContent=BLANK_DISPLAY_TEXT; deck.light.classList.remove('active'); return; }
       const track = TRACKS[idx];
-      st.trackIndex=idx; st.buffer=track.buffer; st.playbackPos=0; st.currentRotation=0; st._rotLast=0;
+      st.trackIndex=idx; st.buffer=track.buffer; st.playbackPos=0; st.currentRotation=0; st.baseRotation=0; st.accumAngle=0;
       deck.status.textContent = track.fileName.substring(0, 30);
       deck.light.classList.remove('active');
       updatePitch(deckId, parseFloat(deck.pitch.value));
@@ -514,10 +517,11 @@
       src.onended = () => { if (st.isPlaying && !st.isCueing) stopDeck(deckId); };
     }
     window.playDeck = playDeck;
+
     function stopDeck(deckId){
       const deck = decks[deckId], st = deck.state;
       if (st.source){ st.source.stop(); st.source.disconnect(); st.source=null; }
-      st.isPlaying=false; st.playbackPos=0; st.currentRotation=0; st._rotLast=0;
+      st.isPlaying=false;
       deck.light.classList.remove('active');
     }
     window.stopDeck = stopDeck;
@@ -569,9 +573,9 @@
     function updateVolume(deckId, v){ const st = decks[deckId].state; if (!st.isCueing) st.gain.gain.linearRampToValueAtTime(v, audioCtx.currentTime + .05); }
     function updateEQ(deckId, type, v){ const st = decks[deckId].state; st.eq[type].gain.linearRampToValueAtTime(v, audioCtx.currentTime + .05); }
     function updateMasterVol(v){ masterVolGain.gain.linearRampToValueAtTime(v, audioCtx.currentTime + .05); }
-    function updateHPMix(v){ masterPreListen.gain.value = v; }
-
+    function updateHPMix(v){ masterPreListen.gain.value = v; } // 0=cue off, 1=full feed to HP bus
     function updateCrossfader(value){
+      // Equal-power law
       const aGain = Math.cos(value * 0.5 * Math.PI);
       const bGain = Math.cos((1.0 - value) * 0.5 * Math.PI);
       crossfaderGainA.gain.value = aGain;
@@ -600,23 +604,41 @@
 
     function updateRecordRotation(st){
       if (!st.buffer) return;
-      const now = performance.now() * 0.001; // seconds
+      if (st.isDragging || st.manualRotate) return; // user controlling platter
+      const now = performance.now() * 0.001;
       if (!st._rotLast) st._rotLast = now;
       const dt = now - st._rotLast;
       st._rotLast = now;
 
       let rate = 0;
-      if (st.isDragging) rate = st.scratchRate;
-      else if (st.isPlaying) rate = st.rateNode ? st.rateNode.value : 1.0;
+      if (st.isPlaying) rate = st.rateNode ? st.rateNode.value : 1.0;
 
       if (rate !== 0){
-        const rotationSpeedDegPerSec = rate * 360;
-        st.currentRotation = (st.currentRotation + rotationSpeedDegPerSec * dt) % 360;
+        const rotationSpeedDegPerSec = rate * 360; // visual spin while playing (1x -> 1 rev/sec)
+        st.currentRotation = (st.currentRotation + rotationSpeedDegPerSec * dt);
         const deck = decks[st.id];
         if (deck && deck.recordEl){
           deck.recordEl.style.transform = `rotate(${st.currentRotation}deg)`;
         }
       }
+    }
+
+    // Utility: angle between center and pointer (degrees)
+    function pointerAngleDeg(el, clientX, clientY){
+      const rect = el.getBoundingClientRect();
+      const cx = rect.left + rect.width/2;
+      const cy = rect.top  + rect.height/2;
+      const dx = clientX - cx;
+      const dy = clientY - cy;
+      const a = Math.atan2(dy, dx) * 180/Math.PI; // -180..180, 0 at +X
+      return a;
+    }
+    function shortestDelta(a, b){
+      // delta from a -> b in degrees, normalized to [-180, 180]
+      let d = b - a;
+      while (d > 180) d -= 360;
+      while (d < -180) d += 360;
+      return d;
     }
 
     function jumpToPosition(deckId, e){
@@ -655,72 +677,79 @@
     }
 
     let activeDeck = null;
+
     function handleStart(e, deckId){
-      if (e.touches && e.touches.length > 1) return; // allow pinch-zoom
+      if (e.touches && e.touches.length > 1) return;
       e.preventDefault();
       initAudio();
-      audioCtx.resume && audioCtx.resume(); // wake on mobile
-      const deck = decks[deckId], st = deck.state;
+      audioCtx.resume && audioCtx.resume();
+
+      const deck = decks[deckId], st = deck.state, el = deck.recordEl;
       if (!st.buffer) return;
 
-      st.isDragging = true; activeDeck = deck; st.hasMoved=false;
+      st.isDragging = true; st.manualRotate = true; activeDeck = deck; st.hasMoved=false;
+
+      // Stop sound while manipulating platter (quiet scratch feel)
       if (st.source){ st.source.stop(); st.source.disconnect(); st.source=null; }
+      st.isPlaying = false;
+      deck.light.classList.remove('active');
 
-      st.rotationStartClientX = (e.clientX != null) ? e.clientX : e.touches[0].clientX;
-      st.scratchRate = 0;
-      st.eq.scratch.frequency.linearRampToValueAtTime(6000, audioCtx.currentTime + .01);
+      const cx = (e.clientX != null) ? e.clientX : e.touches[0].clientX;
+      const cy = (e.clientY != null) ? e.clientY : e.touches[0].clientY;
 
-      const src = audioCtx.createBufferSource();
-      src.buffer = st.buffer; src.connect(st.eq.low);
-      src.playbackRate.value = 0; st.rateNode = src.playbackRate;
-      st.source = src; st.isPlaying=true; st.lastUpdateTime=audioCtx.currentTime; st._rotLast=0;
-      src.start(0, st.playbackPos);
+      st.startAngle = pointerAngleDeg(el, cx, cy);
+      st.baseRotation = st.currentRotation;
+      st.accumAngle = 0;
+      st.startPlaybackPos = st.playbackPos;
     }
 
     function handleMove(e){
       if (e.touches && e.touches.length > 1) return;
       if (!activeDeck || !activeDeck.state.isDragging) return;
       e.preventDefault();
-      const deck = activeDeck, st = deck.state;
 
-      const clientX = (e.clientX != null) ? e.clientX : (e.touches && e.touches.length ? e.touches[0].clientX : null);
-      if (clientX === null) return;
+      const deck = activeDeck, st = deck.state, el = deck.recordEl;
+      const cx = (e.clientX != null) ? e.clientX : (e.touches && e.touches.length ? e.touches[0].clientX : null);
+      const cy = (e.clientY != null) ? e.clientY : (e.touches && e.touches.length ? e.touches[0].clientY : null);
+      if (cx === null || cy === null) return;
 
       st.hasMoved = true;
-      const diffX = clientX - st.rotationStartClientX;
-      st.rotationStartClientX = clientX;
 
-      const sensitivity = .5;
-      const rotationChange = diffX * sensitivity;
-      const rateChange = rotationChange / 360;
+      const nowAngle = pointerAngleDeg(el, cx, cy);
+      const dAng = shortestDelta(st.startAngle, nowAngle); // change since drag began (bounded)
+      // Accumulate across many spins: compute step vs last frame
+      // For stable accumulation, update startAngle to now for next frame
+      st.accumAngle += shortestDelta(st.startAngle, nowAngle);
+      st.startAngle = nowAngle;
 
-      st.scratchRate = rateChange * 10;
-      st.currentRotation = (st.currentRotation + rotationChange) % 360;
+      // Visual platter rotation: unlimited turns
+      st.currentRotation = st.baseRotation + st.accumAngle;
+      el.style.transform = `rotate(${st.currentRotation}deg)`;
 
-      const playbackChange = rotationChange * st.buffer.duration * 0.0027777777777778;
-      st.playbackPos = Math.max(0, Math.min(st.buffer.duration, st.playbackPos + playbackChange));
-
-      if (st.source && st.rateNode) st.rateNode.value = st.scratchRate;
+      // Map platter angle to time offset (≈1.8s per 360°)
+      const dSecs = (st.accumAngle / 360) * SECS_PER_REV;
+      st.playbackPos = Math.max(0, Math.min((st.startPlaybackPos + dSecs), st.buffer.duration));
     }
 
     function handleEnd(deckId){
       const deck = decks[deckId], st = deck.state;
       if (!st.isDragging) return;
 
-      st.isDragging=false; activeDeck=null;
-      st.eq.scratch.frequency.linearRampToValueAtTime(20, audioCtx.currentTime + .1);
+      st.isDragging=false; st.manualRotate=false;
 
-      if (!st.hasMoved) return;
+      // Resume from the new position
+      if (st.buffer){
+        if (st.source){ st.source.stop(); st.source.disconnect(); st.source=null; }
+        const src = audioCtx.createBufferSource();
+        src.buffer=st.buffer; src.connect(st.eq.low);
+        src.playbackRate.value = st.rate || 1.0; st.rateNode = src.playbackRate;
 
-      if (st.source){ st.source.stop(); st.source.disconnect(); st.source=null; }
+        st.source=src; st.isPlaying=true; st.lastUpdateTime=audioCtx.currentTime; st._rotLast=0;
+        src.start(0, st.playbackPos);
+        deck.light.classList.add('active');
 
-      const src = audioCtx.createBufferSource();
-      src.buffer=st.buffer; src.connect(st.eq.low);
-      src.playbackRate.value = st.rate || 1.0; st.rateNode = src.playbackRate;
-
-      st.source=src; st.isPlaying=true; st.lastUpdateTime=audioCtx.currentTime; st._rotLast=0;
-      src.start(0, st.playbackPos);
-      src.onended = () => { if (st.isPlaying && !st.isCueing) stopDeck(deckId); };
+        src.onended = () => { if (st.isPlaying && !st.isCueing) stopDeck(deckId); };
+      }
     }
 
     const bindDeck = (deckId)=>{
@@ -750,7 +779,7 @@
     document.body.addEventListener('click', ()=>{ initAudio(); audioCtx.resume && audioCtx.resume(); }, {once:true});
     document.body.addEventListener('touchstart', ()=>{ initAudio(); audioCtx.resume && audioCtx.resume(); }, {once:true});
 
-    /* --------- SCALE ENGINE (fit-to-window; pinch can upscale) --------- */
+    /* --------- SCALE ENGINE (fit-to-window) --------- */
     (function(){
       const SHELL = document.getElementById('app-scale-shell');
       const APP   = document.querySelector('.dj-container');
@@ -773,10 +802,31 @@
       document.addEventListener('DOMContentLoaded', ()=>{ setTimeout(applyScale, 0); });
     })();
 
-    /* ---------------- File/Folder loading (FILE-FIRST) ---------------- */
+    /* ---------------- File/Folder loading (robust desktop/mobile order) ---------------- */
+    function isMobileDevice(){
+      const ua = navigator.userAgent || '';
+      const uad = (navigator.userAgentData && navigator.userAgentData.mobile) ? true : false;
+      return /Android|iPhone|iPad|iPod/i.test(ua) || uad;
+    }
+
     loadFilesBtn.addEventListener('click', async () => {
-      initAudio(); audioCtx.resume && audioCtx.resume(); // wake context for iOS
-      // 1) Prefer normal multi-file picker so you SEE WAVs directly
+      try { initAudio(); if (audioCtx.state === 'suspended') await audioCtx.resume(); } catch(e){}
+
+      const mobile = isMobileDevice();
+
+      if (!mobile && 'showDirectoryPicker' in window) {
+        try { await pickDirectoryWithFSAccess(); return; }
+        catch (err) {
+          if (err && (err.name === 'AbortError' || err.code === 20)) { loadingStatus.textContent = 'Selection cancelled.'; return; }
+        }
+      }
+
+      if (!mobile && ('webkitdirectory' in musicFilesInput)) {
+        musicFilesInput.value = '';
+        musicFilesInput.click();
+        return;
+      }
+
       if ('showOpenFilePicker' in window) {
         try {
           const handles = await window.showOpenFilePicker({
@@ -786,26 +836,23 @@
           const files = await Promise.all(handles.map(h => h.getFile()));
           await loadFilesFromArray(files.filter(isAudioFile));
           return;
-        } catch (err) {}
+        } catch (err) {
+          if (err && (err.name === 'AbortError' || err.code === 20)) { loadingStatus.textContent = 'Selection cancelled.'; return; }
+        }
       }
-      // 2) Directory picker (Chromium)
-      if ('showDirectoryPicker' in window) {
-        try { await pickDirectoryWithFSAccess(); return; } catch (e) {}
-      }
-      // 3) Legacy folder input
-      if ('webkitdirectory' in musicFilesInput) { musicFilesInput.click(); return; }
-      // 4) Plain file input
+
+      filePicker.value = '';
       filePicker.click();
     });
 
     musicFilesInput.addEventListener('change', async (e) => {
-      if (!e.target.files || !e.target.files.length) return;
-      initAudio(); audioCtx.resume && audioCtx.resume();
+      if (!e.target.files || !e.target.files.length) { loadingStatus.textContent = 'No files selected.'; return; }
+      try { initAudio(); if (audioCtx.state === 'suspended') await audioCtx.resume(); } catch(e){}
       await loadFilesFromFileList(e.target.files);
     });
     filePicker.addEventListener('change', async (e) => {
-      if (!e.target.files || !e.target.files.length) return;
-      initAudio(); audioCtx.resume && audioCtx.resume();
+      if (!e.target.files || !e.target.files.length) { loadingStatus.textContent = 'No files selected.'; return; }
+      try { initAudio(); if (audioCtx.state === 'suspended') await audioCtx.resume(); } catch(e){}
       await loadFilesFromFileList(e.target.files);
     });
 
@@ -833,49 +880,76 @@
       await loadFilesFromArray(files);
     }
 
-    // Robust async decode (skips bad files instead of failing the whole batch)
+    async function decodeWithBestSafariCompat(buf){
+      try { await audioCtx.resume(); } catch(e){}
+      try {
+        if (audioCtx.decodeAudioData.length === 1) {
+          return await audioCtx.decodeAudioData(buf);
+        }
+      } catch(e) { /* fall back */ }
+      return await new Promise((resolve, reject) => {
+        try { audioCtx.decodeAudioData(buf.slice(0), resolve, reject); }
+        catch(err){ reject(err); }
+      });
+    }
+
     async function loadFilesFromArray(files) {
       if (!files.length) { loadingStatus.textContent = 'No audio files found.'; return; }
       if (!audioCtx) initAudio();
 
       TRACKS = [];
-      loadingStatus.textContent = 'Loading...';
-
       let loaded = 0, failed = 0;
+      loadingStatus.textContent = 'Loading...';
 
       for (const file of files) {
         try {
           const buf = await file.arrayBuffer();
-          const decoded = await new Promise((resolve, reject) => {
-            try { audioCtx.decodeAudioData(buf.slice(0), resolve, reject); }
-            catch(err){ reject(err); }
-          });
+          const decoded = await decodeWithBestSafariCompat(buf);
           TRACKS.push({ fileName: file.name, buffer: decoded });
           loaded++;
+          loadingStatus.textContent = `${loaded} loaded` + (failed?`, ${failed} failed`:'');
         } catch (err) {
           failed++;
+          loadingStatus.textContent = `${loaded} loaded, ${failed} failed`;
         }
       }
 
       if (loaded > 0) {
-        loadingStatus.textContent = `${loaded} file${loaded>1?'s':''} loaded.` + (failed ? ` (${failed} failed)` : '');
         populateTrackSelects();
-      } else {
-        loadingStatus.textContent = failed ? `Failed to load ${failed} file${failed>1?'s':''}.` : 'No audio files loaded.';
+
+        // Auto-load first two
+        const aIdx = 0;
+        const bIdx = (TRACKS.length > 1) ? 1 : 0;
+        decks.A.trackSelectEl.value = String(aIdx);
+        decks.B.trackSelectEl.value = String(bIdx);
+        loadDeck('A', aIdx);
+        loadDeck('B', bIdx);
+      }
+
+      if (!loaded && failed) {
+        loadingStatus.textContent += ' (could not decode on this device).';
       }
     }
 
     function isAudioFile(file) {
       if (!file) return false;
-      const typeOkay = (file.type && file.type.toLowerCase().startsWith('audio/'));
       const name = (file.name || '').toLowerCase();
       const extOkay = /\.(wav|wave|aif|aiff|mp3|m4a|aac|flac|ogg|oga|opus)$/.test(name);
-      return typeOkay || extOkay;
+      const typeOkay = (file.type && file.type.toLowerCase().startsWith('audio/'));
+      return extOkay || typeOkay;
     }
 
     /* -------- Crossfader (scale-aware) -------- */
     let isDraggingX = false;
     const HANDLE_HALF = 15;
+    function setCrossfaderUI(value){
+      const railCSSWidth = crossfaderRail.offsetWidth;
+      const leftCSS = value * railCSSWidth - HANDLE_HALF;
+      crossfaderHandle.style.left = `${leftCSS}px`;
+    }
+    // init center
+    window.addEventListener('load', ()=> setCrossfaderUI(.5));
+
     crossfaderHandle.addEventListener('mousedown', (e)=>{ e.preventDefault(); isDraggingX=true; });
     document.addEventListener('mouseup',  ()=>{ isDraggingX=false; });
     document.addEventListener('mousemove',(e)=>{
@@ -906,9 +980,20 @@
       crossfaderHandle.style.left = `${leftCSS}px`;
     }, {passive:false});
     document.addEventListener('touchend', ()=>{ isDraggingX=false; });
+
+    /* -------- Wire ALL sliders -------- */
+    masterVolControl.addEventListener('input', (e)=> updateMasterVol(parseFloat(e.target.value)));
+    hpVolControl.addEventListener('input', (e)=> { if (cueGain) cueGain.gain.value = parseFloat(e.target.value); });
+    hpMixControl.addEventListener('input', (e)=> updateHPMix(parseFloat(e.target.value)));
+
+    masterFilterFreq.addEventListener('input', (e)=> updateFilterFreq(parseFloat(e.target.value)));
+    delayWetDryControl.addEventListener('input', (e)=> updateFXWetDry('delay', parseFloat(e.target.value)));
+    reverbWetDryControl.addEventListener('input', (e)=> updateFXWetDry('reverb', parseFloat(e.target.value)));
+    delayFeedbackControl.addEventListener('input', (e)=> updateDelayFeedback(parseFloat(e.target.value)));
+    delayTimeActualControl.addEventListener('input', (e)=> updateDelayTime(parseFloat(e.target.value)));
   </script>
 
-  <!-- Stylus (triangle; scrubs + auto-follow; anchored to PLATE so it doesn't rotate) -->
+  <!-- Stylus (triangle; silent while dragging; resumes only if it was playing; anchored to plate) -->
   <script>
     (function(){
       var SAFE_GAP_PX = 6;
@@ -923,7 +1008,7 @@
       }
 
       function createStylus(record){
-        var plate = record.parentElement; // ANCHOR TO PLATE, not the rotating record
+        var plate = record.parentElement;
         if (!plate) return;
 
         var slider = document.createElement('div');
@@ -936,9 +1021,9 @@
         handle.className = 'stylus-handle';
         hit.appendChild(handle);
         slider.appendChild(hit);
-        plate.appendChild(slider); // <-- appended to PLATE (sibling), so it stays fixed at 3 o'clock
+        plate.appendChild(slider);
 
-        var dragging = false, value = 0; // 0=outer rim, 1=label rim
+        var dragging = false, value = 0, wasPlaying = false;
 
         function render(){
           var w = slider.clientWidth;
@@ -949,23 +1034,36 @@
           hit.style.left = x + 'px';
         }
 
-        function apply(){
+        function getDeckState(){
           var deckRoot = record.closest('[id^="deck"]');
           var deckId   = deckRoot ? deckRoot.id.replace('deck','').toUpperCase() : null;
+          if (!deckId || !window.decks) return null;
+          return { deckId, st: window.decks[deckId].state };
+        }
 
-          if (deckId && window.decks && window.audioCtx){
-            var st = window.decks[deckId].state;
-            if (!st || !st.buffer) return;
+        function liftStylus(){
+          var d = getDeckState(); if (!d) return;
+          var st = d.st;
+          wasPlaying = !!st.isPlaying;
+          if (st.source){ try{ st.source.stop(); st.source.disconnect(); }catch(e){} st.source=null; }
+          st.isPlaying = false;
+          var deck = window.decks[d.deckId];
+          if (deck) deck.light.classList.remove('active');
+        }
 
-            if (st.source){ try{ st.source.stop(); st.source.disconnect(); }catch(e){} st.source=null; }
+        function dropStylus(){
+          var d = getDeckState(); if (!d) return;
+          var deckId = d.deckId, st = d.st;
+          if (!st || !st.buffer) return;
 
-            if (value >= 0.999){
-              if (typeof window.stopDeck === 'function') window.stopDeck(deckId);
-              return;
-            }
+          st.playbackPos = value * st.buffer.duration;
 
-            st.playbackPos = value * st.buffer.duration;
+          if (value >= 0.999){
+            if (typeof window.stopDeck === 'function') window.stopDeck(deckId);
+            return;
+          }
 
+          if (wasPlaying){
             var src = audioCtx.createBufferSource();
             src.buffer = st.buffer;
             src.connect(st.eq.low);
@@ -978,29 +1076,31 @@
                 window.stopDeck(deckId);
               }
             };
+            var deck = window.decks[deckId];
+            if (deck) deck.light.classList.add('active');
           } else {
-            record.dispatchEvent(new CustomEvent('stylus-scrub', { detail:{ fraction:value, element:record } }));
+            st.isPlaying = false;
           }
         }
 
         function setFromPlayback(){
           try{
-            var deckRoot = record.closest('[id^="deck"]');
-            var deckId = deckRoot ? deckRoot.id.replace('deck','').toUpperCase() : null;
-            if (deckId && window.decks){
-              var st = window.decks[deckId].state;
-              if (st && st.buffer && !dragging){
-                value = st.playbackPos / st.buffer.duration;
-                if (value > 0.999) value = 0.999;
-                render();
-              }
+            var d = getDeckState();
+            if (!d) return;
+            var st = d.st;
+            if (st && st.buffer && !dragging){
+              value = st.playbackPos / st.buffer.duration;
+              if (value > 0.999) value = 0.999;
+              render();
             }
           }catch(e){}
         }
 
         function start(e){
           if (e.touches && e.touches.length > 1) return;
-          e.preventDefault(); dragging = true;
+          e.preventDefault();
+          dragging = true;
+          liftStylus();
         }
         function move(clientX){
           if (!dragging) return;
@@ -1009,7 +1109,11 @@
           value = 1 - (x / rect.width);
           render();
         }
-        function end(){ if (!dragging) return; dragging = false; apply(); }
+        function end(){
+          if (!dragging) return;
+          dragging = false;
+          dropStylus();
+        }
 
         hit.addEventListener('mousedown', function(e){ start(e); });
         document.addEventListener('mousemove', function(e){ move(e.clientX); });
@@ -1023,10 +1127,13 @@
         document.addEventListener('touchend', end);
 
         slider.addEventListener('click', function(e){
+          var d = getDeckState(); if (!d) return;
+          liftStylus();
           var rect = slider.getBoundingClientRect();
           var x = Math.max(0, Math.min(e.clientX - rect.left, rect.width));
           value = 1 - (x / rect.width);
-          render(); apply();
+          render();
+          dropStylus();
         });
 
         function resize(){ slider.style.width = computeTravelPx(record) + 'px'; render(); }

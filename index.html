@@ -2,340 +2,457 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=10, maximum-scale=10, user-scalable=yes" />
-  <title>Scratcher - Pro Turntable Controller</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Scratcher Pro 2026 - Fluid</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@300;600;900&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@700&family=Inter:wght@500;700;900&display=swap');
 
-    :root{
-      --bg-dark:#0F172A;
-      --deck-bg:#1E293B;
-      --mixer-color:#334155;
-      --fader-rail:#475569;
-      --accent:#38BDF8;
-      --accent-glow:0 0 8px rgba(56,189,248,.6);
-      --record-surface:#020617;
-      --control-label:#94A3B8;
-      --shadow-dark:#000;
-      --box-shadow-raised:10px 10px 20px var(--shadow-dark), -5px -5px 10px #243445;
-      --box-shadow-inset:inset 3px 3px 6px var(--shadow-dark), inset -3px -3px 6px #243445;
+    :root {
+      --bg-deep: #050507;
+      --border-subtle: rgba(255, 255, 255, 0.15);
+      --accent-primary: #0ea5e9;
+      --text-main: #f1f5f9;
+      --text-muted: #94a3b8;
     }
 
-    html, body { height:100%; }
-    body{
-      margin:0;
-      background:var(--bg-dark);
-      color:#E2E8F0;
-      font-family:'Inter', sans-serif;
-      overflow:hidden;
-      display:flex; align-items:center; justify-content:center;
-      touch-action:auto;
+    html, body { 
+        height: 100%; width: 100%; margin: 0; padding: 0;
+        overflow: hidden; 
+        background-color: var(--bg-deep);
+        background-image: radial-gradient(circle at center, #15151a 0%, #000 100%);
+        font-family: 'Inter', sans-serif;
+        color: var(--text-main);
+        -webkit-font-smoothing: antialiased;
+        touch-action: none;
     }
 
-    #app-scale-shell{ position:relative; transform-origin:top left; will-change:transform,width,height; }
-
-    .dj-container{
-      width:1200px; max-width:1200px; min-width:1200px;
-      display:flex; flex-direction:column;
-      padding:8px;
-      background:linear-gradient(145deg,#101824,#0d131f);
-      border-radius:20px;
-      box-shadow:0 20px 60px rgba(0,0,0,.9), 0 0 1px #1E293B;
-      border:1px solid #1E293B;
-      overflow:visible;
+    /* FLUID CONTAINER - No fixed pixels */
+    .dj-container {
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      padding: 1vh 1vw; /* Tiny padding */
+      box-sizing: border-box;
     }
 
-    .main-mix{ display:flex; flex-grow:1; min-height:0; }
-    .app-title{ font-family:'Orbitron', sans-serif; color:#fff; font-size:1.5rem; font-weight:700; }
-    .fader-label, .status-info{ color:var(--control-label); font-size:10px; font-weight:600; text-transform:uppercase; letter-spacing:.5px; }
+    /* --- HEADER --- */
+    #fileLoader {
+      flex: 0 0 auto; /* Don't shrink */
+      height: 50px;
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 0 16px;
+      margin-bottom: 8px;
+      background: #0a0a0c;
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+    }
+    .app-title { font-weight: 900; font-size: clamp(1rem, 2vw, 1.5rem); letter-spacing: -0.02em; white-space: nowrap; }
+    .file-loader-group { display: flex; gap: 8px; align-items: center; }
+    
+    .mini-btn {
+      background: linear-gradient(180deg, #2a2a30, #1a1a20);
+      color: var(--text-main); font-size: 0.7rem; font-weight: 700;
+      padding: 8px 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.1);
+      cursor: pointer; text-transform: uppercase; white-space: nowrap;
+    }
+    .mini-btn.red { background: linear-gradient(180deg, #7f1d1d, #450a0a); border-color: #991b1b; }
 
-    #fileLoader{
-      display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap;
-      padding:4px 16px; margin-bottom:0;
-      background:var(--mixer-color); border-radius:12px;
-      box-shadow:inset 0 0 10px rgba(0,0,0,.5); border:1px solid #475569;
-    }
-    .file-loader-group{ display:flex; align-items:center; gap:10px; }
-    #loadingStatus{ order:3; width:100%; margin-top:5px; text-align:right; white-space:pre-line; }
-
-    .track-display-window{
-      width:100%; height:30px; margin-bottom:5px; padding:4px 6px;
-      background:#020617; border:3px solid var(--accent); border-radius:6px;
-      display:flex; align-items:center; justify-content:center;
-      color:#38BDF8; font-family:'Orbitron', monospace; font-size:13px;
-      box-shadow:var(--accent-glow), inset 0 0 15px rgba(0,0,0,.8);
-    }
-
-    .track-select{
-      width:100%;
-      background:#475569; color:#111827; border:none; border-radius:8px;
-      padding:8px 30px 8px 10px; font-size:12px; font-weight:900; text-align:left;
-      -webkit-appearance:none; -moz-appearance:none; appearance:none;
-      background-image:url('data:image/svg+xml;charset=US-ASCII,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22292.4%22 height=%22292.4%22%3E%3Cpath fill=%22%23111827%22 d=%22M287 69.4a17.6 17.6 0 0 0-13.6-6.4H19a17.6 17.6 0 0 0-13.6 6.4 17.6 17.6 0 0 0 0 24.3l127.3 127.9c5.6 5.6 13.3 8.2 21.3 8.2s15.7-2.6 21.3-8.2L287 93.7a17.9 17.9 0 0 0 0-24.3z%22/%3E%3C/svg%3E');
-      background-repeat:no-repeat; background-position:right 10px center; background-size:10px auto;
-    }
-    .track-select option{ color:#fff; background:#1E293B; }
-
-    .turntable{
-      padding:15px; background:var(--deck-bg); border-radius:12px;
-      box-shadow:var(--box-shadow-raised), inset 0 0 15px rgba(0,0,0,.3);
-      margin:0 8px; flex-grow:1; display:flex; flex-direction:column;
-    }
-    .mixer{
-      padding:15px 10px; background:var(--mixer-color); margin:0 8px; border-radius:12px;
-      box-shadow:var(--box-shadow-raised); display:flex; flex-direction:column; gap:5px;
-    }
-    .deck-controls{ flex-grow:1; display:flex; flex-direction:column; justify-content:space-around; }
-
-    .record-plate{
-      width:230px; height:230px; max-width:95%; max-height:95%;
-      position:relative; align-self:center; margin-top:5px; margin-bottom:10px;
-    }
-    .record{
-      position:absolute; inset:0; border-radius:50%; background:var(--record-surface);
-      border:4px solid #475569; box-shadow:0 0 20px rgba(0,0,0,.9) inset, 0 8px 15px rgba(0,0,0,.6);
-      cursor:grab; will-change:transform;
-      touch-action:none;
-    }
-    .record-label{
-      position:absolute; top:50%; left:50%; transform:translate(-50%, -50%);
-      width:30%; height:30%; border-radius:50%; background:#EF4444; color:#fff;
-      display:flex; align-items:center; justify-content:center;
-      font-family:'Orbitron', sans-serif; font-size:1.5rem; font-weight:900;
-      box-shadow:0 0 5px rgba(0,0,0,.5) inset;
-    }
-    .cue-mark{ position:absolute; top:5%; left:50%; transform:translateX(-50%); width:8%; height:8%; border-radius:50%; background:#FBBF24; }
-
-    input[type="range"]{ box-shadow:var(--box-shadow-inset); height:15px; margin:0; padding:0; }
-    input[type="range"]::-webkit-slider-thumb{
-      box-shadow:0 3px 6px rgba(0,0,0,.8), 0 0 1px #fff, inset 1px 1px 3px rgba(255,255,255,.4);
-      border:1px solid #fff;
+    /* --- DECK LAYOUT (GRID) --- */
+    .main-mix {
+      flex: 1; /* Take all remaining height */
+      display: grid;
+      /* 3 Columns: Deck A, Mixer (fixed max width), Deck B */
+      grid-template-columns: 1fr minmax(280px, 25%) 1fr; 
+      gap: 1vw;
+      min-height: 0; /* Critical for scrolling prevention */
     }
 
-    .crossfader-rail{ position:relative; height:15px; background:var(--fader-rail); border-radius:8px; width:100%; margin-top:5px; box-shadow:var(--box-shadow-inset); }
-    .crossfader-handle{
-      position:absolute; top:-2px; width:30px; height:25px; background:#E2E8F0; border:1px solid #fff; border-radius:4px;
-      cursor:grab; transition:left .05s ease-out;
-      box-shadow:0 3px 6px rgba(0,0,0,.8), 0 0 1px #fff, inset 1px 1px 3px rgba(255,255,255,.4);
+    .turntable {
+      background: linear-gradient(180deg, #25252b 0%, #15151a 100%);
+      border: 1px solid var(--border-subtle); border-radius: 16px;
+      padding: 1.5vh 1.5vw;
+      display: flex; flex-direction: column;
+      position: relative;
+      overflow: hidden;
     }
-    .crossfader-handle:active{ cursor:grabbing; box-shadow:inset 0 1px 3px rgba(0,0,0,.5); }
 
-    .btn{
-      padding:8px 12px; border-radius:6px; font-weight:900; color:#111827; text-transform:uppercase; font-size:11px;
-      box-shadow:0 3px 5px rgba(0,0,0,.8); border:1px solid rgba(255,255,255,.1); transition:all .1s;
+    .mixer {
+      background: #15151a; border: 1px solid var(--border-subtle); border-radius: 16px;
+      padding: 1.5vh 1vw;
+      display: flex; flex-direction: column;
+      justify-content: space-between; /* Space out faders vertically */
+      gap: 1vh;
     }
-    .play-btn{ background:#10B981; }
-    .stop-btn{ background:#EF4444; }
-    .cue-btn{ background:#FBBF24; }
-    .btn:active{ box-shadow:inset 0 1px 5px rgba(0,0,0,.8); transform:translateY(1px); }
-    .cue-btn.active{ background:#D97706; box-shadow:inset 0 1px 5px rgba(0,0,0,.8); transform:translateY(1px); }
 
-    .controls-row{ display:flex; align-items:center; gap:8px; }
-    .controls-row button{ flex-grow:1; }
-    .status-light{ flex-shrink:0; margin-left:0; }
-
-    .horizontal-fader-group{ display:flex; justify-content:space-between; align-items:flex-end; width:100%; margin-bottom:0; }
-    .master-hp-fader-group{ display:flex; justify-content:space-around; align-items:center; width:100%; margin-bottom:0; }
-    .fader-control-horizontal{ display:flex; flex-direction:column; align-items:center; width:30%; }
-    .fader-control-horizontal input[type="range"]{ width:100%; margin-top:5px; }
-
-    .master-controls-group{ display:flex; flex-direction:column; align-items:center; justify-content:flex-end; gap:5px; margin-bottom:0; }
-    .vu-meter{ display:flex; flex-direction:column-reverse; width:15px; height:50px; background:#020617; border:1px solid #475569; border-radius:4px; padding:2px; }
-    .vu-segment{ height:10%; margin-bottom:1px; background:#38BDF8; opacity:.2; transition:opacity .1s; }
-    .vu-segment.on{ opacity:1; }
-    .vu-segment.yellow{ background:#FACC15; }
-    .vu-segment.red{ background:#EF4444; }
-    .hp-mix-control{ width:100%; margin-top:0; display:flex; flex-direction:column; align-items:center; }
-    .hp-mix-labels{ width:100%; display:flex; justify-content:space-between; font-size:8px; color:var(--control-label); margin-top:3px; }
-
-    .fx-panel-top, .fx-panel{ margin-bottom:0; }
-    .fx-control{ margin-top:5px; }
-  </style>
-
-  <!-- Stylus (triangle; fixed at ~3 o’clock, slightly lowered and nudged left) -->
-  <style id="stylus-addon">
-    .stylus-slider{
-      position:absolute;
-      top:calc(50% + 4px);
-      right:-2px;            /* nudged left to sit at 3 o'clock */
-      transform:translateY(-50%);
-      height:20px;
-      pointer-events:none;
-      z-index:10;
+    /* --- COMPONENT STYLES --- */
+    label { 
+        font-size: 0.65rem; font-weight: 700; color: #94a3b8; 
+        letter-spacing: 0.05em; margin-bottom: 2px; display: block; 
     }
-    .stylus-hitbox{
-      position:absolute; top:-6px; width:24px; height:20px;
-      pointer-events:auto; cursor:ew-resize;
+    
+    input[type=range] { -webkit-appearance: none; width: 100%; background: transparent; cursor: grab; margin: 0; }
+    input[type=range]:focus { outline: none; }
+    
+    input[type=range]::-webkit-slider-runnable-track {
+      width: 100%; height: 6px; cursor: pointer;
+      background: #050507; border-radius: 3px; border: 1px solid #000;
+      box-shadow: inset 0 2px 4px rgba(0,0,0,0.9);
     }
-    .stylus-handle{
-      position:absolute; left:0; top:0; width:0; height:0;
-      border-left:8px solid transparent; border-right:8px solid transparent;
-      border-bottom:12px solid #38BDF8;
-      filter:drop-shadow(0 0 2px rgba(56,189,248,.6));
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none; height: 16px; width: 16px; border-radius: 50%; margin-top: -6px;
+      background: radial-gradient(circle at 30% 30%, #e2e8f0 0%, #94a3b8 40%, #475569 100%);
+      border: 1px solid #000; box-shadow: 0 4px 8px rgba(0,0,0,0.7);
     }
+
+    /* --- EQ & FX --- */
+    .eq-section { display: flex; gap: 8px; flex: 0 0 auto; margin-bottom: 1vh; }
+    .eq-knob { flex: 1; text-align: center; }
+    
+    .fx-panel { 
+      background: rgba(0,0,0,0.3); border-radius: 12px; padding: 1vh 1vw;
+      display: grid; grid-template-columns: 1fr 1fr; gap: 1vh;
+      flex: 0 0 auto;
+    }
+    .fx-control { text-align: center; }
+
+    /* --- RECORD (FLUID SIZE) --- */
+    .record-container {
+      flex: 1; /* Grow to fill space */
+      display: flex; align-items: center; justify-content: center;
+      min-height: 0;
+      padding: 1vh 0;
+    }
+    .record-plate {
+      /* Key to fluid sizing: responsive to Viewport Min (vmin) but capped */
+      width: 35vmin; height: 35vmin;
+      max-width: 320px; max-height: 320px;
+      position: relative;
+      border-radius: 50%; background: #080808;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.6), 0 0 0 6px #18181b, 0 0 0 7px #000;
+      flex-shrink: 0;
+    }
+    .record {
+      width: 100%; height: 100%; border-radius: 50%;
+      background: repeating-radial-gradient(#111 0, #111 2px, #1a1a1a 3px, #1a1a1a 4px);
+      position: relative; touch-action: none; cursor: grab; border: 2px solid #000;
+    }
+    .record-label {
+      position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      width: 35%; height: 35%; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 900; font-size: 1.5rem; color: #fff;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.5), inset 0 0 20px rgba(0,0,0,0.2);
+      border: 4px solid rgba(0,0,0,0.1);
+    }
+    #deckA .record-label { background: #f43f5e; }
+    #deckB .record-label { background: #3b82f6; }
+    .cue-mark {
+      position: absolute; top: 5%; left: 50%; transform: translateX(-50%);
+      width: 6%; height: 6%; border-radius: 50%; background: #fff; box-shadow: 0 0 10px #fff;
+    }
+
+    /* --- DECK CONTROLS --- */
+    .deck-controls { 
+      flex: 0 0 auto; /* Don't shrink */
+      display: flex; flex-direction: column; gap: 1vh; 
+    }
+    .track-display-window {
+      background: #000; border: 1px solid #333; border-radius: 6px; padding: 8px;
+      font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; color: var(--accent-primary);
+      text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      box-shadow: inset 0 2px 10px rgba(0,0,0,0.8);
+    }
+    .track-select {
+      width: 100%; background: #0f172a; color: #fff; border: 1px solid #334155;
+      padding: 8px; border-radius: 8px; font-size: 0.75rem; font-weight: 600;
+    }
+    .controls-row { display: flex; gap: 8px; }
+    
+    .btn {
+      flex: 1; padding: 12px 0; border-radius: 8px; border: none;
+      font-weight: 800; font-size: 0.75rem; cursor: pointer;
+      box-shadow: 0 4px 0 rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.1);
+      text-transform: uppercase;
+    }
+    .btn:active { transform: translateY(2px); box-shadow: inset 0 2px 5px rgba(0,0,0,0.6); }
+    
+    .play-btn { background: linear-gradient(180deg, #334155, #1e293b); color: #fff; }
+    .play-btn:active { background: #10b981; }
+    .stop-btn { background: linear-gradient(180deg, #334155, #1e293b); color: #f87171; }
+    .cue-btn { background: linear-gradient(180deg, #334155, #1e293b); color: #fbbf24; }
+    .cue-btn.active { background: #fbbf24; color: #000; transform: translateY(2px); }
+
+    .status-light {
+      width: 16px; height: 16px; border-radius: 50%; background: #222;
+      align-self: center; box-shadow: inset 0 1px 3px rgba(0,0,0,0.9); border: 1px solid #444; flex-shrink: 0;
+    }
+    .status-light.active { background: #00ff66; box-shadow: 0 0 15px #00ff66; }
+
+    /* --- MIXER CENTER --- */
+    .master-hp-row { display: flex; justify-content: space-between; gap: 10px; flex: 0 0 auto;}
+    
+    .horizontal-fader-group { 
+        display: flex; justify-content: space-between; align-items: center; 
+        flex: 1; /* Grow to fill vertical space */
+        min-height: 100px;
+    }
+    
+    /* Vertical Faders (Fluid) */
+    .fader-control-horizontal { 
+        height: 100%; width: 30%;
+        display: flex; flex-direction: column; align-items: center; justify-content: center; 
+        position: relative;
+    }
+    /* We use absolute positioning to fake vertical rotation in a flex container */
+    .vertical-slider-wrapper {
+        width: 100%; height: 100%; position: relative;
+        display: flex; justify-content: center; align-items: center;
+    }
+    #volA, #volB { 
+        transform: rotate(-90deg); 
+        width: 20vh; /* Responsive length based on screen height */
+        max-width: 200px; 
+    }
+    .fader-control-horizontal input[type=range]::-webkit-slider-thumb {
+      border-radius: 2px; height: 28px; width: 40px;
+      background: linear-gradient(180deg, #64748b 0%, #334155 50%, #1e293b 100%);
+      box-shadow: 0 5px 10px rgba(0,0,0,0.8), inset 0 1px 0 rgba(255,255,255,0.3); margin-top: -12px;
+    }
+
+    .vu-meter {
+      width: 16px; height: 80%; background: #000; border-radius: 4px;
+      display: flex; flex-direction: column-reverse; padding: 2px; gap: 2px;
+      border: 1px solid #333;
+    }
+    .vu-segment { height: 10%; width: 100%; background: #1e293b; border-radius: 1px; }
+    .vu-segment.on { background: var(--accent-primary); box-shadow: 0 0 8px var(--accent-primary); }
+    .vu-segment.yellow.on { background: #facc15; }
+    .vu-segment.red.on { background: #ef4444; }
+
+    /* Crossfader */
+    .crossfader-container { padding: 1vh 0; flex: 0 0 auto; }
+    .crossfader-rail {
+      height: 12px; background: #000; border-radius: 6px; position: relative;
+      box-shadow: inset 0 2px 5px rgba(0,0,0,0.9), 0 1px 0 rgba(255,255,255,0.1); border: 1px solid #111;
+    }
+    .crossfader-handle {
+      width: 50px; height: 36px; 
+      background: linear-gradient(180deg, #94a3b8, #475569); border-radius: 4px;
+      position: absolute; top: -12px; left: 50%; transform: translateX(-50%);
+      cursor: grab; border-top: 1px solid rgba(255,255,255,0.4); border-bottom: 1px solid rgba(0,0,0,0.8);
+      box-shadow: 0 6px 12px rgba(0,0,0,0.7);
+    }
+    .crossfader-handle::after {
+      content: ''; position: absolute; top: 8px; left: 18px; right: 18px; bottom: 8px;
+      border-top: 2px solid rgba(0,0,0,0.3); border-bottom: 2px solid rgba(0,0,0,0.3);
+    }
+
+    /* Stylus */
+    .stylus-slider {
+      position: absolute; top: 50%; right: 0; height: 6px; background: rgba(255,255,255,0.1);
+      transform: translateY(-50%); z-index: 10; pointer-events: none; border-radius: 3px;
+    }
+    .stylus-hitbox { position: absolute; top: -20px; width: 12px; height: 46px; pointer-events: auto; cursor: ew-resize; }
+    .stylus-handle {
+      width: 0; height: 0; 
+      border-left: 8px solid transparent; border-right: 8px solid transparent; border-bottom: 24px solid var(--accent-primary);
+      filter: drop-shadow(0 0 6px var(--accent-primary));
+    }
+
   </style>
 </head>
 <body>
-  <div id="app-scale-shell">
-    <div class="dj-container">
+  
+  <div class="dj-container">
+      
       <div id="fileLoader">
-        <h1 class="app-title">SCRATCHER</h1>
+        <h1 class="app-title">SCRATCHER <span style="font-weight:300; color:var(--accent-primary); font-size:0.8em;">PRO</span></h1>
         <div class="file-loader-group">
-          <label class="text-sm font-semibold text-sky-400">LOAD YOUR MUSIC FOLDERS:</label>
-          <!-- Hidden inputs -->
           <input type="file" id="musicFiles" multiple webkitdirectory directory style="display:none;">
-          <input type="file" id="filePicker" multiple
-                 accept=".wav,.wave,.aif,.aiff,.mp3,.m4a,.aac,.flac,.ogg,.oga,.opus,audio/*"
-                 style="display:none;">
-          <button id="loadFilesBtn" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-1 px-3 rounded text-xs transition">Select Folders</button>
+          <input type="file" id="filePicker" multiple accept="audio/*" style="display:none;">
+          <button id="loadFilesBtn" class="mini-btn">📁 Folder</button>
+          <button id="addFilesBtn"  class="mini-btn">📄 Files</button>
+          <button id="clearLibBtn"  class="mini-btn red">✕ Clear</button>
         </div>
-        <div id="loadingStatus" class="text-xs mt-2 text-gray-300 w-full text-right">0 files loaded.</div>
+        <div id="loadingStatus" class="text-xs text-gray-400 font-bold tracking-wide">EMPTY</div>
       </div>
 
       <div class="main-mix">
+        
         <div class="turntable" id="deckA">
+          <div class="track-display-window" id="statusA">NO TRACK LOADED</div>
+          
           <div class="eq-section">
-            <div class="eq-knob"><label class="eq-label">LOW</label><input type="range" id="eqLowA" min="-12" max="12" step="0.1" value="0.0"></div>
-            <div class="eq-knob"><label class="eq-label">MID</label><input type="range" id="eqMidA" min="-12" max="12" step="0.1" value="0.0"></div>
-            <div class="eq-knob"><label class="eq-label">HIGH</label><input type="range" id="eqHighA" min="-12" max="12" step="0.1" value="0.0"></div>
+            <div class="eq-knob"><label>HI</label><input type="range" id="eqHighA" min="-12" max="12" step="0.1" value="0.0"></div>
+            <div class="eq-knob"><label>MID</label><input type="range" id="eqMidA" min="-12" max="12" step="0.1" value="0.0"></div>
+            <div class="eq-knob"><label>LO</label><input type="range" id="eqLowA" min="-12" max="12" step="0.1" value="0.0"></div>
           </div>
 
-          <div class="track-display-window" id="statusA">---</div>
-
-          <div class="record-plate">
-            <div class="record" id="recordA">
-              <div class="record-label">A</div>
-              <div class="cue-mark"></div>
+          <div class="record-container">
+            <div class="record-plate">
+              <div class="record" id="recordA">
+                <div class="record-label">A</div>
+                <div class="cue-mark"></div>
+              </div>
             </div>
           </div>
 
           <div class="deck-controls">
-            <select class="track-select" id="trackSelectA"><option value="-1" disabled selected>SELECT TRACK</option></select>
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <label>PITCH</label>
+              <input type="range" id="pitchA" min="0.5" max="1.5" step="0.01" value="1.0" style="width:70%">
+            </div>
+            
+            <select class="track-select" id="trackSelectA"><option value="-1" disabled selected>Select Track A</option></select>
+
             <div class="controls-row">
               <button class="btn play-btn" id="playA">PLAY</button>
-              <button class="btn cue-btn" id="cueA">CUE</button>
+              <button class="btn cue-btn"  id="cueA">CUE</button>
               <button class="btn stop-btn" id="stopA">STOP</button>
               <div class="status-light" id="lightA"></div>
             </div>
-            <label class="fader-label text-center">PITCH</label>
-            <input type="range" id="pitchA" min="0.5" max="1.5" step="0.01" value="1.0">
+            
+            <div class="controls-row">
+              <button class="mini-btn" id="unloadA" style="flex:1">Unload</button>
+              <button class="mini-btn red" id="removeA" style="flex:1">Remove</button>
+            </div>
           </div>
         </div>
 
         <div class="mixer">
-          <div class="horizontal-fader-group">
-            <div class="fader-control-horizontal">
-              <label class="fader-label">VOL A</label>
-              <input type="range" id="volA" min="0" max="1" step="0.01" value="0.7">
-            </div>
-
-            <div class="master-controls-group">
-              <label class="fader-label">OUTPUT</label>
-              <div class="vu-meter" id="masterVUMeter">
-                <div class="vu-segment" style="height:10%" data-level="1"></div>
-                <div class="vu-segment" style="height:10%" data-level="2"></div>
-                <div class="vu-segment" style="height:10%" data-level="3"></div>
-                <div class="vu-segment" style="height:10%" data-level="4"></div>
-                <div class="vu-segment" style="height:10%" data-level="5"></div>
-                <div class="vu-segment" style="height:10%" data-level="6"></div>
-                <div class="vu-segment yellow" style="height:10%" data-level="7"></div>
-                <div class="vu-segment yellow" style="height:10%" data-level="8"></div>
-                <div class="vu-segment red" style="height:10%" data-level="9"></div>
-                <div class="vu-segment red" style="height:10%" data-level="10"></div>
-              </div>
-            </div>
-
-            <div class="fader-control-horizontal">
-              <label class="fader-label">VOL B</label>
-              <input type="range" id="volB" min="0" max="1" step="0.01" value="0.7">
-            </div>
-          </div>
-
-          <div class="master-hp-fader-group">
-            <div class="fader-control-horizontal" style="width:45%;">
-              <label class="fader-label">MASTER VOL</label>
+          
+          <div class="master-hp-row">
+            <div style="width:48%">
+              <label>MASTER</label>
               <input type="range" id="masterVol" min="0" max="1" step="0.01" value="0.9">
             </div>
-            <div class="fader-control-horizontal" style="width:45%;">
-              <label class="fader-label">HP VOL</label>
+            <div style="width:48%">
+              <label>PHONES</label>
               <input type="range" id="hpVol" min="0" max="1" step="0.01" value="0.8">
             </div>
           </div>
 
-          <div class="hp-mix-control">
-            <label class="fader-label text-xs">HP CUE / MASTER</label>
-            <input type="range" id="hpMix" min="0" max="1" step="0.01" value="0.5" title="Headphone Cue/Master Mix">
-            <div class="hp-mix-labels"><span>CUE</span><span>MASTER</span></div>
-          </div>
-
-          <div class="fx-panel-top">
-            <label class="fader-label text-xs">EFFECTS WET/DRY</label>
-            <div class="fx-control">
-              <input type="range" id="reverbWetDry" min="0" max="1" step="0.01" value="0.0" title="Reverb Wet/Dry">
-              <label class="fader-label text-xs">REVERB</label>
+          <div class="horizontal-fader-group">
+            <div class="fader-control-horizontal">
+              <div class="vertical-slider-wrapper">
+                <input type="range" id="volA" min="0" max="1" step="0.01" value="0.7">
+              </div>
+              <label>CH A</label>
             </div>
-            <div class="fx-control">
-              <input type="range" id="delayWetDry" min="0" max="1" step="0.01" value="0.0" title="Delay Wet/Dry">
-              <label class="fader-label text-xs">DELAY</label>
+
+            <div class="master-controls-group" style="display:flex; flex-direction:column; align-items:center;">
+              <div class="vu-meter" id="masterVUMeter">
+                <div class="vu-segment red" data-level="10"></div>
+                <div class="vu-segment red" data-level="9"></div>
+                <div class="vu-segment yellow" data-level="8"></div>
+                <div class="vu-segment yellow" data-level="7"></div>
+                <div class="vu-segment" data-level="6"></div>
+                <div class="vu-segment" data-level="5"></div>
+                <div class="vu-segment" data-level="4"></div>
+                <div class="vu-segment" data-level="3"></div>
+                <div class="vu-segment" data-level="2"></div>
+                <div class="vu-segment" data-level="1"></div>
+              </div>
+              <label style="margin-top:5px">dB</label>
+            </div>
+
+            <div class="fader-control-horizontal">
+              <div class="vertical-slider-wrapper">
+                <input type="range" id="volB" min="0" max="1" step="0.01" value="0.7">
+              </div>
+              <label>CH B</label>
             </div>
           </div>
 
           <div class="fx-panel">
-            <label class="fader-label text-xs">MASTER CHAIN</label>
             <div class="fx-control">
-              <input type="range" id="masterFilterFreq" min="100" max="18000" step="10" value="18000" title="Low Pass Filter Frequency">
-              <label class="fader-label text-xs">FILTER (LPF)</label>
+              <label>FILTER</label>
+              <input type="range" id="masterFilterFreq" min="100" max="18000" step="10" value="18000">
             </div>
             <div class="fx-control">
-              <input type="range" id="delayFeedback" min="0.1" max="0.9" step="0.01" value="0.3" title="Delay Feedback">
-              <label class="fader-label text-xs">FEEDBACK</label>
+              <label>DLY MIX</label>
+              <input type="range" id="delayWetDry" min="0" max="1" step="0.01" value="0.0">
             </div>
             <div class="fx-control">
-              <input type="range" id="delayTime" min="0.05" max="0.5" step="0.01" value="0.3" title="Delay Time">
-              <label class="fader-label text-xs">TIME</label>
+              <label>DLY TIME</label>
+              <input type="range" id="delayTime" min="0.05" max="0.5" step="0.01" value="0.3">
+            </div>
+            <div class="fx-control">
+              <label>DLY FB</label>
+              <input type="range" id="delayFeedback" min="0.1" max="0.9" step="0.01" value="0.3">
+            </div>
+            <div class="fx-control">
+              <label>RVB MIX</label>
+              <input type="range" id="reverbWetDry" min="0" max="1" step="0.01" value="0.0">
+            </div>
+            <div class="fx-control">
+              <label>CUE MIX</label>
+              <input type="range" id="hpMix" min="0" max="1" step="0.01" value="0.5">
             </div>
           </div>
 
-          <div class="crossfader-rail" id="crossfaderRail"><div class="crossfader-handle" id="crossfaderHandle"></div></div>
-          <label class="fader-label">X-FADER</label>
+          <div class="crossfader-container">
+            <label style="text-align:center;">CROSSFADER</label>
+            <div class="crossfader-rail" id="crossfaderRail">
+              <div class="crossfader-handle" id="crossfaderHandle"></div>
+            </div>
+            <div style="display:flex; justify-content:space-between; padding-top:4px;">
+              <span class="text-xs font-bold text-gray-500">A</span>
+              <span class="text-xs font-bold text-gray-500">B</span>
+            </div>
+          </div>
         </div>
 
         <div class="turntable" id="deckB">
+          <div class="track-display-window" id="statusB">NO TRACK LOADED</div>
+          
           <div class="eq-section">
-            <div class="eq-knob"><label class="eq-label">LOW</label><input type="range" id="eqLowB" min="-12" max="12" step="0.1" value="0.0"></div>
-            <div class="eq-knob"><label class="eq-label">MID</label><input type="range" id="eqMidB" min="-12" max="12" step="0.1" value="0.0"></div>
-            <div class="eq-knob"><label class="eq-label">HIGH</label><input type="range" id="eqHighB" min="-12" max="12" step="0.1" value="0.0"></div>
+            <div class="eq-knob"><label>HI</label><input type="range" id="eqHighB" min="-12" max="12" step="0.1" value="0.0"></div>
+            <div class="eq-knob"><label>MID</label><input type="range" id="eqMidB" min="-12" max="12" step="0.1" value="0.0"></div>
+            <div class="eq-knob"><label>LO</label><input type="range" id="eqLowB" min="-12" max="12" step="0.1" value="0.0"></div>
           </div>
 
-          <div class="track-display-window" id="statusB">---</div>
-
-          <div class="record-plate">
-            <div class="record" id="recordB">
-              <div class="record-label">B</div>
-              <div class="cue-mark"></div>
+          <div class="record-container">
+            <div class="record-plate">
+              <div class="record" id="recordB">
+                <div class="record-label">B</div>
+                <div class="cue-mark"></div>
+              </div>
             </div>
           </div>
 
           <div class="deck-controls">
-            <select class="track-select" id="trackSelectB"><option value="-1" disabled selected>SELECT TRACK</option></select>
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <label>PITCH</label>
+              <input type="range" id="pitchB" min="0.5" max="1.5" step="0.01" value="1.0" style="width:70%">
+            </div>
+
+            <select class="track-select" id="trackSelectB"><option value="-1" disabled selected>Select Track B</option></select>
+
             <div class="controls-row">
               <button class="btn play-btn" id="playB">PLAY</button>
-              <button class="btn cue-btn" id="cueB">CUE</button>
+              <button class="btn cue-btn"  id="cueB">CUE</button>
               <button class="btn stop-btn" id="stopB">STOP</button>
               <div class="status-light" id="lightB"></div>
             </div>
-            <label class="fader-label text-center">PITCH</label>
-            <input type="range" id="pitchB" min="0.5" max="1.5" step="0.01" value="1.0">
+
+            <div class="controls-row">
+              <button class="mini-btn" id="unloadB" style="flex:1">Unload</button>
+              <button class="mini-btn red" id="removeB" style="flex:1">Remove</button>
+            </div>
           </div>
         </div>
+
       </div>
     </div>
-  </div>
+  
 
   <script>
-    /* --------- Audio/Deck plumbing --------- */
+    /* --------- LOGIC CORE (Multitouch + Logic from working version) --------- */
     let TRACKS = [];
+    let TRACK_KEYS = new Set();
     let audioCtx;
     let animationFrameId;
     let crossfaderGainA, crossfaderGainB, masterFilter, delayNode, feedbackGain, delayWetGain, reverbWetGain, reverbDelay, reverbLowPass, cueGain, masterOutGain;
@@ -343,8 +460,8 @@
     let masterPreListen;
     let analyserNode;
 
-    const DECK_A = { id:'A', trackIndex:-1, buffer:null, source:null, gain:null, rate:1.0, isPlaying:false, playbackPos:0, lastUpdateTime:0, currentRotation:0, _rotLast:0, eq:{low:null,mid:null,high:null,scratch:null}, hasMoved:false, isDragging:false, startAngle:0, baseRotation:0, accumAngle:0, startPlaybackPos:0, manualRotate:false, rateNode:null };
-    const DECK_B = { id:'B', trackIndex:-1, buffer:null, source:null, gain:null, rate:1.0, isPlaying:false, playbackPos:0, lastUpdateTime:0, currentRotation:0, _rotLast:0, eq:{low:null,mid:null,high:null,scratch:null}, hasMoved:false, isDragging:false, startAngle:0, baseRotation:0, accumAngle:0, startPlaybackPos:0, manualRotate:false, rateNode:null };
+    const DECK_A = { id:'A', trackIndex:-1, buffer:null, source:null, gain:null, rate:1.0, isPlaying:false, playbackPos:0, lastUpdateTime:0, currentRotation:0, _rotLast:0, eq:{low:null,mid:null,high:null,scratch:null}, hasMoved:false, isDragging:false, startAngle:0, baseRotation:0, accumAngle:0, startPlaybackPos:0, manualRotate:false, rateNode:null, touchId: null };
+    const DECK_B = { id:'B', trackIndex:-1, buffer:null, source:null, gain:null, rate:1.0, isPlaying:false, playbackPos:0, lastUpdateTime:0, currentRotation:0, _rotLast:0, eq:{low:null,mid:null,high:null,scratch:null}, hasMoved:false, isDragging:false, startAngle:0, baseRotation:0, accumAngle:0, startPlaybackPos:0, manualRotate:false, rateNode:null, touchId: null };
 
     const $ = id => document.getElementById(id);
     const decks = {
@@ -364,21 +481,22 @@
     const musicFilesInput = $('musicFiles');
     const filePicker      = $('filePicker');
     const loadFilesBtn    = $('loadFilesBtn');
+    const addFilesBtn     = $('addFilesBtn');
+    const clearLibBtn     = $('clearLibBtn');
     const loadingStatus   = $('loadingStatus');
     const masterVolControl = $('masterVol');
     const masterVUMeter = $('masterVUMeter');
     const hpMixControl = $('hpMix');
     const vuSegments = Array.from(masterVUMeter.querySelectorAll('.vu-segment'));
 
-    const BLANK_DISPLAY_TEXT = '---';
+    const BLANK_DISPLAY_TEXT = 'NO TRACK LOADED';
     const RECORD_PADDING_PERCENT = 0.1;
-    const SECS_PER_REV = 60/33.333; // ≈1.8s per full revolution
+    const SECS_PER_REV = 60/33.333;
 
     function initAudio(){
       if (audioCtx) return;
       audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
-      // HP chain (kept for completeness; CUE no longer mutes the deck)
       cueGain = audioCtx.createGain();
       cueGain.gain.value = parseFloat(hpVolControl.value);
       cueGain.connect(audioCtx.destination);
@@ -418,7 +536,6 @@
       reverbWetGain = audioCtx.createGain();
       reverbWetGain.gain.value = parseFloat(reverbWetDryControl.value);
 
-      // FX
       delayNode.connect(feedbackGain);
       feedbackGain.connect(delayNode);
       delayNode.connect(delayWetGain);
@@ -427,7 +544,6 @@
       reverbDelay.connect(reverbLowPass);
       reverbLowPass.connect(reverbWetGain);
 
-      // Master
       masterOutGain.connect(delayNode);
       masterOutGain.connect(masterFilter);
 
@@ -452,7 +568,6 @@
       crossfaderGainB.connect(masterOutGain);
 
       updateCrossfader(.5);
-
       requestAnimationFrame(update);
     }
 
@@ -461,7 +576,6 @@
       deckState.gain.gain.value = parseFloat($('vol'+deckState.id).value);
       deckState.gain.connect(crossfaderGain);
 
-      // (Optional HP path kept, not used by CUE anymore)
       deckState.cueNode = audioCtx.createGain();
       deckState.cueNode.gain.value = 0.0;
       deckState.cueNode.connect(masterPreListen);
@@ -480,7 +594,10 @@
       scratchFilter.connect(deckState.cueNode);
     }
 
-    function populateTrackSelects(){
+    function populateTrackSelects(preserveByName = true){
+      const selNameA = (decks.A.state.trackIndex >= 0 && TRACKS[decks.A.state.trackIndex]) ? TRACKS[decks.A.state.trackIndex].fileName : null;
+      const selNameB = (decks.B.state.trackIndex >= 0 && TRACKS[decks.B.state.trackIndex]) ? TRACKS[decks.B.state.trackIndex].fileName : null;
+
       const A = decks.A.trackSelectEl, B = decks.B.trackSelectEl;
       [A,B].forEach(sel => {
         sel.innerHTML = '<option value="-1" disabled selected>SELECT TRACK</option>';
@@ -489,6 +606,17 @@
           opt.value = i; opt.textContent = t.fileName; sel.appendChild(opt);
         });
       });
+
+      if (preserveByName){
+        if (selNameA){
+          const idxA = TRACKS.findIndex(t => t.fileName === selNameA);
+          if (idxA >= 0){ A.value = String(idxA); loadDeck('A', idxA); }
+        }
+        if (selNameB){
+          const idxB = TRACKS.findIndex(t => t.fileName === selNameB);
+          if (idxB >= 0){ B.value = String(idxB); loadDeck('B', idxB); }
+        }
+      }
     }
 
     function loadDeck(deckId, idx){
@@ -500,6 +628,40 @@
       deck.status.textContent = track.fileName.substring(0, 30);
       deck.light.classList.remove('active');
       updatePitch(deckId, parseFloat(deck.pitch.value));
+    }
+
+    function unloadDeck(deckId){
+      const deck = decks[deckId], st = deck.state;
+      stopDeck(deckId);
+      st.buffer = null; st.trackIndex = -1; st.playbackPos = 0;
+      deck.trackSelectEl.value = "-1";
+      deck.status.textContent = BLANK_DISPLAY_TEXT;
+    }
+
+    function removeCurrentTrackFromLibrary(deckId){
+      const deck = decks[deckId], st = deck.state;
+      if (st.trackIndex < 0 || st.trackIndex >= TRACKS.length) return;
+      removeTrackByIndex(st.trackIndex);
+    }
+
+    function removeTrackByIndex(idx){
+      ['A','B'].forEach(id => {
+        const d = decks[id], st = d.state;
+        if (st.trackIndex === idx){
+          stopDeck(id);
+          st.buffer = null;
+          st.trackIndex = -1;
+          d.trackSelectEl.value = "-1";
+          d.status.textContent = BLANK_DISPLAY_TEXT;
+        } else if (st.trackIndex > idx){
+          st.trackIndex -= 1;
+        }
+      });
+
+      const removed = TRACKS.splice(idx, 1)[0];
+      if (removed && removed._key){ TRACK_KEYS.delete(removed._key); }
+      populateTrackSelects(false);
+      updateLibraryStatus();
     }
 
     function playDeck(deckId){
@@ -523,28 +685,22 @@
       const deck = decks[deckId], st = deck.state;
       if (st.source){ st.source.stop(); st.source.disconnect(); st.source=null; }
       st.isPlaying=false;
-      deck.light.classList.remove('active');
+      if (deck && deck.light) deck.light.classList.remove('active');
     }
     window.stopDeck = stopDeck;
 
-    // CUE now: restart from 0 and play on MASTER; does NOT mute deck
     function cueDeck(deckId){
       const deck = decks[deckId], st = deck.state;
       if (!st.buffer) return;
-
-      // Toggle button state only (no routing changes)
-      const active = deck.cueBtn.classList.toggle('active');
-
+      deck.cueBtn.classList.toggle('active');
       st.playbackPos = 0;
       if (st.source){ st.source.stop(); st.source.disconnect(); st.source=null; }
-
       const src = audioCtx.createBufferSource();
       src.buffer=st.buffer; src.connect(st.eq.low);
       src.playbackRate.value = st.rate || 1.0; st.rateNode = src.playbackRate;
       st.source=src; st.isPlaying=true; st.lastUpdateTime=audioCtx.currentTime; st._rotLast=0;
       src.start(0, st.playbackPos);
       deck.light.classList.add('active');
-
       src.onended = () => { if (st.isPlaying) stopDeck(deckId); };
     }
 
@@ -565,7 +721,7 @@
     function updateVolume(deckId, v){ const st = decks[deckId].state; st.gain.gain.linearRampToValueAtTime(v, audioCtx.currentTime + .05); }
     function updateEQ(deckId, type, v){ const st = decks[deckId].state; st.eq[type].gain.linearRampToValueAtTime(v, audioCtx.currentTime + .05); }
     function updateMasterVol(v){ masterVolGain.gain.linearRampToValueAtTime(v, audioCtx.currentTime + .05); }
-    function updateHPMix(v){ masterPreListen.gain.value = v; } // still functional but CUE no longer depends on it
+    function updateHPMix(v){ masterPreListen.gain.value = v; }
 
     function updateCrossfader(value){
       const aGain = Math.cos(value * 0.5 * Math.PI);
@@ -635,14 +791,14 @@
       if (!st.buffer) return;
 
       const rect = recordEl.getBoundingClientRect();
-      const centerX = rect.left + rect.width/2;
-      const centerY = rect.top + rect.height/2;
       const radius  = rect.width/2;
+      const cx = rect.left + rect.width/2;
+      const cy = rect.top + rect.height/2;
 
       const clientX = e.clientX || (e.touches && e.touches[0] ? e.touches[0].clientX : e.clientX);
       const clientY = e.clientY || (e.touches && e.touches[0] ? e.touches[0] ? e.touches[0].clientY : e.clientY : e.clientY);
 
-      const dx = clientX - centerX, dy = clientY - centerY;
+      const dx = clientX - cx, dy = clientY - cy;
       const distance = Math.sqrt(dx*dx + dy*dy);
       let normalized = distance / radius;
 
@@ -667,8 +823,66 @@
 
     let activeDeck = null;
 
+    /* -------- Crossfader Logic -------- */
+    let isDraggingX = false;
+    let crossfaderTouchId = null;
+    const HANDLE_HALF = 25; 
+
+    function setCrossfaderUI(value){
+      const railWidth = crossfaderRail.offsetWidth;
+      const leftCSS = value * railWidth - HANDLE_HALF;
+      crossfaderHandle.style.left = `${leftCSS}px`;
+    }
+    window.addEventListener('load', ()=> setCrossfaderUI(.5));
+
+    crossfaderHandle.addEventListener('mousedown', (e)=>{ e.preventDefault(); isDraggingX=true; });
+    document.addEventListener('mouseup',  ()=>{ isDraggingX=false; });
+    document.addEventListener('mousemove',(e)=>{
+      if (!isDraggingX) return;
+      const rect = crossfaderRail.getBoundingClientRect();
+      const railWidth = crossfaderRail.offsetWidth;
+      let xScaled = e.clientX - rect.left;
+      xScaled = Math.max(0, Math.min(xScaled, rect.width));
+      const value = xScaled / rect.width;
+      updateCrossfader(value);
+      const leftCSS = value * railWidth - HANDLE_HALF;
+      crossfaderHandle.style.left = `${leftCSS}px`;
+    });
+
+    crossfaderHandle.addEventListener('touchstart',(e)=>{
+      e.preventDefault(); isDraggingX=true;
+      crossfaderTouchId = e.changedTouches[0].identifier;
+    }, {passive:false});
+
+    document.addEventListener('touchmove',(e)=>{
+      if (!isDraggingX) return;
+      let touch = null;
+      for(let i=0; i<e.changedTouches.length; i++){
+        if(e.changedTouches[i].identifier === crossfaderTouchId){ touch = e.changedTouches[i]; break; }
+      }
+      if(!touch) return;
+
+      const rect = crossfaderRail.getBoundingClientRect();
+      const railWidth = crossfaderRail.offsetWidth;
+      let xScaled = touch.clientX - rect.left;
+      xScaled = Math.max(0, Math.min(xScaled, rect.width));
+      const value = xScaled / rect.width;
+      updateCrossfader(value);
+      const leftCSS = value * railWidth - HANDLE_HALF;
+      crossfaderHandle.style.left = `${leftCSS}px`;
+    }, {passive:false});
+
+    document.addEventListener('touchend', (e)=>{
+       if(!isDraggingX) return;
+       for(let i=0; i<e.changedTouches.length; i++){
+         if(e.changedTouches[i].identifier === crossfaderTouchId){
+           isDraggingX=false; crossfaderTouchId=null;
+         }
+       }
+    });
+
+    /* -------- Record Touch Logic -------- */
     function handleStart(e, deckId){
-      if (e.touches && e.touches.length > 1) return;
       e.preventDefault();
       initAudio();
       audioCtx.resume && audioCtx.resume();
@@ -676,14 +890,22 @@
       const deck = decks[deckId], st = deck.state, el = deck.recordEl;
       if (!st.buffer) return;
 
-      st.isDragging = true; st.manualRotate = true; activeDeck = deck; st.hasMoved=false;
+      let cx, cy;
+      if (e.type === 'touchstart') {
+          const t = e.changedTouches[0];
+          st.touchId = t.identifier; 
+          cx = t.clientX; cy = t.clientY;
+      } else {
+          cx = e.clientX; cy = e.clientY;
+      }
+
+      st.isDragging = true; st.manualRotate = true; 
+      activeDeck = deck; 
+      st.hasMoved = false;
 
       if (st.source){ st.source.stop(); st.source.disconnect(); st.source=null; }
       st.isPlaying = false;
       deck.light.classList.remove('active');
-
-      const cx = (e.clientX != null) ? e.clientX : e.touches[0].clientX;
-      const cy = (e.clientY != null) ? e.clientY : e.touches[0].clientY;
 
       st.startAngle = pointerAngleDeg(el, cx, cy);
       st.baseRotation = st.currentRotation;
@@ -692,15 +914,23 @@
     }
 
     function handleMove(e){
-      if (e.touches && e.touches.length > 1) return;
       if (!activeDeck || !activeDeck.state.isDragging) return;
-      e.preventDefault();
-
       const deck = activeDeck, st = deck.state, el = deck.recordEl;
-      const cx = (e.clientX != null) ? e.clientX : (e.touches && e.touches.length ? e.touches[0].clientX : null);
-      const cy = (e.clientY != null) ? e.clientY : (e.touches && e.touches.length ? e.touches[0].clientY : null);
-      if (cx === null || cy === null) return;
+      let cx = null, cy = null;
 
+      if (e.type === 'touchmove') {
+          for(let i=0; i<e.changedTouches.length; i++){
+              if(e.changedTouches[i].identifier === st.touchId){
+                  cx = e.changedTouches[i].clientX;
+                  cy = e.changedTouches[i].clientY;
+                  break;
+              }
+          }
+          if(cx === null) return; 
+      } else {
+          cx = e.clientX; cy = e.clientY;
+      }
+      e.preventDefault(); 
       st.hasMoved = true;
 
       const nowAngle = pointerAngleDeg(el, cx, cy);
@@ -714,11 +944,22 @@
       st.playbackPos = Math.max(0, Math.min((st.startPlaybackPos + dSecs), st.buffer.duration));
     }
 
-    function handleEnd(deckId){
-      const deck = decks[deckId], st = deck.state;
-      if (!st.isDragging) return;
+    function handleEnd(e){
+      if (!activeDeck || !activeDeck.state.isDragging) return;
+      const deckId = activeDeck.state.id;
+      const st = activeDeck.state;
 
-      st.isDragging=false; st.manualRotate=false;
+      if (e.type === 'touchend' || e.type === 'touchcancel') {
+          let found = false;
+          for(let i=0; i<e.changedTouches.length; i++){
+              if(e.changedTouches[i].identifier === st.touchId){
+                  found = true; break;
+              }
+          }
+          if(!found) return; 
+      }
+
+      st.isDragging=false; st.manualRotate=false; st.touchId=null;
 
       if (st.buffer){
         if (st.source){ st.source.stop(); st.source.disconnect(); st.source=null; }
@@ -728,10 +969,11 @@
 
         st.source=src; st.isPlaying=true; st.lastUpdateTime=audioCtx.currentTime; st._rotLast=0;
         src.start(0, st.playbackPos);
-        deck.light.classList.add('active');
+        if (activeDeck.light) activeDeck.light.classList.add('active');
 
         src.onended = () => { if (st.isPlaying) stopDeck(deckId); };
       }
+      activeDeck = null;
     }
 
     const bindDeck = (deckId)=>{
@@ -746,6 +988,9 @@
       d.eqMid.addEventListener('input', (e) => updateEQ(deckId,'mid', parseFloat(e.target.value)));
       d.eqHigh.addEventListener('input',(e) => updateEQ(deckId,'high',parseFloat(e.target.value)));
 
+      $('unload'+deckId).addEventListener('click', () => unloadDeck(deckId));
+      $('remove'+deckId).addEventListener('click', () => removeCurrentTrackFromLibrary(deckId));
+
       const el = d.recordEl;
       el.addEventListener('mousedown', (e)=>handleStart(e, deckId));
       el.addEventListener('touchstart',(e)=>handleStart(e, deckId), {passive:false});
@@ -755,36 +1000,30 @@
 
     document.addEventListener('mousemove', handleMove);
     document.addEventListener('touchmove', handleMove, {passive:false});
-    document.addEventListener('mouseup', ()=>{ if (activeDeck) handleEnd(activeDeck.state.id); });
-    document.addEventListener('touchend',()=>{ if (activeDeck) handleEnd(activeDeck.state.id); });
+    document.addEventListener('mouseup', handleEnd);
+    document.addEventListener('touchend', handleEnd);
 
     document.body.addEventListener('click', ()=>{ initAudio(); audioCtx.resume && audioCtx.resume(); }, {once:true});
     document.body.addEventListener('touchstart', ()=>{ initAudio(); audioCtx.resume && audioCtx.resume(); }, {once:true});
 
-    /* --------- SCALE ENGINE (fit-to-window) --------- */
+    /* --------- SCALE ENGINE --------- */
     (function(){
-      const SHELL = document.getElementById('app-scale-shell');
-      const APP   = document.querySelector('.dj-container');
-      const BASE_W = 1200;
-
-      function applyScale(){
-        SHELL.style.transform = 'scale(1)';
-        APP.style.width = BASE_W + 'px';
-
-        const baseH = APP.getBoundingClientRect().height;
-        const s = Math.min(window.innerWidth / BASE_W, window.innerHeight / baseH);
-
-        SHELL.style.transform = `scale(${s})`;
-        SHELL.style.width  = (BASE_W * s) + 'px';
-        SHELL.style.height = (baseH  * s) + 'px';
-      }
-
-      window.addEventListener('resize', applyScale);
-      window.addEventListener('orientationchange', applyScale);
-      document.addEventListener('DOMContentLoaded', ()=>{ setTimeout(applyScale, 0); });
+      // Removed fixed pixel sizing logic. 
+      // This version relies purely on CSS Viewport units and Flexbox for fluidity.
+      // No JS resizing needed anymore.
     })();
 
-    /* ---------------- File/Folder loading ---------------- */
+    /* Wire all remaining controls */
+    masterVolControl.addEventListener('input', (e)=> updateMasterVol(parseFloat(e.target.value)));
+    hpVolControl.addEventListener('input', (e)=> { if (cueGain) cueGain.gain.value = parseFloat(e.target.value); });
+    hpMixControl.addEventListener('input', (e)=> updateHPMix(parseFloat(e.target.value)));
+    masterFilterFreq.addEventListener('input', (e)=> updateFilterFreq(parseFloat(e.target.value)));
+    delayWetDryControl.addEventListener('input', (e)=> updateFXWetDry('delay', parseFloat(e.target.value)));
+    reverbWetDryControl.addEventListener('input', (e)=> updateFXWetDry('reverb', parseFloat(e.target.value)));
+    delayFeedbackControl.addEventListener('input', (e)=> updateDelayFeedback(parseFloat(e.target.value)));
+    delayTimeActualControl.addEventListener('input', (e)=> updateDelayTime(parseFloat(e.target.value)));
+
+    /* ---------------- File Logic (Unchanged) ---------------- */
     function isMobileDevice(){
       const ua = navigator.userAgent || '';
       const uad = (navigator.userAgentData && navigator.userAgentData.mobile) ? true : false;
@@ -793,47 +1032,45 @@
 
     loadFilesBtn.addEventListener('click', async () => {
       try { initAudio(); if (audioCtx.state === 'suspended') await audioCtx.resume(); } catch(e){}
-
       const mobile = isMobileDevice();
-
       if (!mobile && 'showDirectoryPicker' in window) {
         try { await pickDirectoryWithFSAccess(); return; }
-        catch (err) {
-          if (err && (err.name === 'AbortError' || err.code === 20)) { loadingStatus.textContent = 'Selection cancelled.'; return; }
-        }
+        catch (err) { if (err && (err.name === 'AbortError' || err.code === 20)) { loadingStatus.textContent = 'Selection cancelled.'; return; } }
       }
-
       if (!mobile && ('webkitdirectory' in musicFilesInput)) {
-        musicFilesInput.value = '';
-        musicFilesInput.click();
-        return;
+        musicFilesInput.value = ''; musicFilesInput.click(); return;
       }
+      filePicker.value = ''; filePicker.click();
+    });
 
+    addFilesBtn.addEventListener('click', async ()=>{
+      try { initAudio(); if (audioCtx.state === 'suspended') await audioCtx.resume(); } catch(e){}
       if ('showOpenFilePicker' in window) {
         try {
           const handles = await window.showOpenFilePicker({
             multiple: true,
-            types: [{ description: 'Audio', accept: { 'audio/*': ['.wav','.wave','.aif','.aiff','.mp3','.m4a','.aac','.flac','.ogg','.oga','.opus'] } }]
+            types: [{ description: 'Audio', accept: { 'audio/*': ['.wav','.mp3','.flac','.ogg','.m4a','.aac'] } }]
           });
           const files = await Promise.all(handles.map(h => h.getFile()));
           await loadFilesFromArray(files.filter(isAudioFile));
           return;
-        } catch (err) {
-          if (err && (err.name === 'AbortError' || err.code === 20)) { loadingStatus.textContent = 'Selection cancelled.'; return; }
-        }
+        } catch (err) { if (err && (err.name === 'AbortError' || err.code === 20)) { return; } }
       }
+      filePicker.value = ''; filePicker.click();
+    });
 
-      filePicker.value = '';
-      filePicker.click();
+    clearLibBtn.addEventListener('click', ()=>{
+      stopDeck('A'); stopDeck('B'); TRACKS = []; TRACK_KEYS.clear();
+      populateTrackSelects(); updateLibraryStatus('Library cleared.');
     });
 
     musicFilesInput.addEventListener('change', async (e) => {
-      if (!e.target.files || !e.target.files.length) { loadingStatus.textContent = 'No files selected.'; return; }
+      if (!e.target.files || !e.target.files.length) return;
       try { initAudio(); if (audioCtx.state === 'suspended') await audioCtx.resume(); } catch(e){}
       await loadFilesFromFileList(e.target.files);
     });
     filePicker.addEventListener('change', async (e) => {
-      if (!e.target.files || !e.target.files.length) { loadingStatus.textContent = 'No files selected.'; return; }
+      if (!e.target.files || !e.target.files.length) return;
       try { initAudio(); if (audioCtx.state === 'suspended') await audioCtx.resume(); } catch(e){}
       await loadFilesFromFileList(e.target.files);
     });
@@ -844,157 +1081,84 @@
       await collectFilesRecursive(dirHandle, files);
       await loadFilesFromArray(files);
     }
-    async function collectFilesRecursive(dirHandle, outArr, pathPrefix = '') {
+    async function collectFilesRecursive(dirHandle, outArr) {
       for await (const [name, handle] of dirHandle.entries()) {
-        const relPath = pathPrefix ? `${pathPrefix}/${name}` : name;
         if (handle.kind === 'file') {
           const file = await handle.getFile();
-          file._relPath = relPath;
           if (isAudioFile(file)) outArr.push(file);
         } else if (handle.kind === 'directory') {
-          await collectFilesRecursive(handle, outArr, relPath);
+          await collectFilesRecursive(handle, outArr);
         }
       }
     }
-
     async function loadFilesFromFileList(fileList) {
       const files = Array.from(fileList).filter(isAudioFile);
       await loadFilesFromArray(files);
     }
-
     async function decodeWithBestSafariCompat(buf){
       try { await audioCtx.resume(); } catch(e){}
-      try {
-        if (audioCtx.decodeAudioData.length === 1) {
-          return await audioCtx.decodeAudioData(buf);
-        }
-      } catch(e) { /* fall back */ }
       return await new Promise((resolve, reject) => {
         try { audioCtx.decodeAudioData(buf.slice(0), resolve, reject); }
         catch(err){ reject(err); }
       });
     }
-
+    function makeTrackKey(file){ return `${file.name}|${file.size}|${file.type}`.toLowerCase(); }
+    function updateLibraryStatus(msg){ loadingStatus.textContent = msg || `Library: ${TRACKS.length} tracks.`; }
+    
     async function loadFilesFromArray(files) {
-      if (!files.length) { loadingStatus.textContent = 'No audio files found.'; return; }
+      if (!files.length) { updateLibraryStatus('No audio files found.'); return; }
       if (!audioCtx) initAudio();
+      if (TRACKS.length && TRACK_KEYS.size === 0) TRACKS.forEach(t => TRACK_KEYS.add(t._key));
 
-      TRACKS = [];
-      let loaded = 0, failed = 0;
-      loadingStatus.textContent = 'Loading...';
+      let added = 0, failed = 0;
+      updateLibraryStatus('Loading...');
 
       for (const file of files) {
+        const key = makeTrackKey(file);
+        if (TRACK_KEYS.has(key)) continue;
         try {
           const buf = await file.arrayBuffer();
           const decoded = await decodeWithBestSafariCompat(buf);
-          TRACKS.push({ fileName: file.name, buffer: decoded });
-          loaded++;
-          loadingStatus.textContent = `${loaded} loaded` + (failed?`, ${failed} failed`:'');
-        } catch (err) {
-          failed++;
-          loadingStatus.textContent = `${loaded} loaded, ${failed} failed`;
+          TRACKS.push({ fileName: file.name, buffer: decoded, _key: key });
+          TRACK_KEYS.add(key);
+          added++;
+          updateLibraryStatus(`Loaded ${added} tracks...`);
+        } catch (err) { failed++; }
+      }
+      
+      if (added > 0) {
+        const hadNone = (decks.A.state.trackIndex < 0 && decks.B.state.trackIndex < 0);
+        populateTrackSelects(true);
+        if (hadNone && TRACKS.length > 0) {
+          decks.A.trackSelectEl.value = "0"; loadDeck('A', 0);
+          if (TRACKS.length > 1) { decks.B.trackSelectEl.value = "1"; loadDeck('B', 1); }
         }
       }
-
-      if (loaded > 0) {
-        populateTrackSelects();
-
-        const aIdx = 0;
-        const bIdx = (TRACKS.length > 1) ? 1 : 0;
-        decks.A.trackSelectEl.value = String(aIdx);
-        decks.B.trackSelectEl.value = String(bIdx);
-        loadDeck('A', aIdx);
-        loadDeck('B', bIdx);
-      }
-
-      if (!loaded && failed) {
-        loadingStatus.textContent += ' (could not decode on this device).';
-      }
+      updateLibraryStatus(`${added} added, ${failed} failed. Total: ${TRACKS.length}`);
     }
 
     function isAudioFile(file) {
-      if (!file) return false;
-      const name = (file.name || '').toLowerCase();
-      const extOkay = /\.(wav|wave|aif|aiff|mp3|m4a|aac|flac|ogg|oga|opus)$/.test(name);
-      const typeOkay = (file.type && file.type.toLowerCase().startsWith('audio/'));
-      return extOkay || typeOkay;
+      return /\.(wav|mp3|m4a|aac|flac|ogg)$/i.test(file.name) || file.type.startsWith('audio/');
     }
-
-    /* -------- Crossfader (scale-aware) -------- */
-    let isDraggingX = false;
-    const HANDLE_HALF = 15;
-    function setCrossfaderUI(value){
-      const railCSSWidth = crossfaderRail.offsetWidth;
-      const leftCSS = value * railCSSWidth - HANDLE_HALF;
-      crossfaderHandle.style.left = `${leftCSS}px`;
-    }
-    window.addEventListener('load', ()=> setCrossfaderUI(.5));
-
-    crossfaderHandle.addEventListener('mousedown', (e)=>{ e.preventDefault(); isDraggingX=true; });
-    document.addEventListener('mouseup',  ()=>{ isDraggingX=false; });
-    document.addEventListener('mousemove',(e)=>{
-      if (!isDraggingX) return;
-      const rect = crossfaderRail.getBoundingClientRect();
-      const railCSSWidth = crossfaderRail.offsetWidth;
-      let xScaled = e.clientX - rect.left;
-      xScaled = Math.max(0, Math.min(xScaled, rect.width));
-      const value = xScaled / rect.width;
-      updateCrossfader(value);
-      const leftCSS = value * railCSSWidth - HANDLE_HALF;
-      crossfaderHandle.style.left = `${leftCSS}px`;
-    });
-    crossfaderHandle.addEventListener('touchstart',(e)=>{
-      if (e.touches && e.touches.length > 1) return;
-      e.preventDefault(); isDraggingX=true;
-    }, {passive:false});
-    document.addEventListener('touchmove',(e)=>{
-      if (!isDraggingX || !e.touches || !e.touches.length) return;
-      if (e.touches.length > 1) return;
-      const rect = crossfaderRail.getBoundingClientRect();
-      const railCSSWidth = crossfaderRail.offsetWidth;
-      let xScaled = e.touches[0].clientX - rect.left;
-      xScaled = Math.max(0, Math.min(xScaled, rect.width));
-      const value = xScaled / rect.width;
-      updateCrossfader(value);
-      const leftCSS = value * railCSSWidth - HANDLE_HALF;
-      crossfaderHandle.style.left = `${leftCSS}px`;
-    }, {passive:false});
-    document.addEventListener('touchend', ()=>{ isDraggingX=false; });
-
-    /* -------- Wire ALL sliders -------- */
-    masterVolControl.addEventListener('input', (e)=> updateMasterVol(parseFloat(e.target.value)));
-    hpVolControl.addEventListener('input', (e)=> { if (cueGain) cueGain.gain.value = parseFloat(e.target.value); });
-    hpMixControl.addEventListener('input', (e)=> updateHPMix(parseFloat(e.target.value)));
-
-    masterFilterFreq.addEventListener('input', (e)=> updateFilterFreq(parseFloat(e.target.value)));
-    delayWetDryControl.addEventListener('input', (e)=> updateFXWetDry('delay', parseFloat(e.target.value)));
-    reverbWetDryControl.addEventListener('input', (e)=> updateFXWetDry('reverb', parseFloat(e.target.value)));
-    delayFeedbackControl.addEventListener('input', (e)=> updateDelayFeedback(parseFloat(e.target.value)));
-    delayTimeActualControl.addEventListener('input', (e)=> updateDelayTime(parseFloat(e.target.value)));
   </script>
 
-  <!-- Stylus (triangle; silent while dragging; resumes only if it was playing; anchored to plate) -->
   <script>
     (function(){
-      var SAFE_GAP_PX = 6;
-
+      var SAFE_GAP_PX = 16;
       function computeTravelPx(record){
         var w = record.clientWidth;
         var radius = w / 2;
         var label = record.querySelector('.record-label');
         var labelR = label ? (label.clientWidth / 2) : 0;
-        var span = Math.max(10, Math.floor((radius - labelR) - SAFE_GAP_PX));
-        return span;
+        return Math.max(10, Math.floor((radius - labelR) - SAFE_GAP_PX));
       }
 
       function createStylus(record){
         var plate = record.parentElement;
         if (!plate) return;
-
         var slider = document.createElement('div');
         slider.className = 'stylus-slider';
-        slider.style.width = computeTravelPx(record) + 'px';
-
+        // Width will be set by resize() immediately
         var hit = document.createElement('div');
         hit.className = 'stylus-hitbox';
         var handle = document.createElement('div');
@@ -1003,15 +1167,14 @@
         slider.appendChild(hit);
         plate.appendChild(slider);
 
-        var dragging = false, value = 0, wasPlaying = false;
+        var dragging = false, value = 0;
+        var stylusTouchId = null;
 
         function render(){
           var w = slider.clientWidth;
-          var hw = 24;
-          var x = (1 - value) * w - hw/2;
-          if (x < -hw/2) x = -hw/2;
-          if (x >  w - hw/2) x = w - hw/2;
-          hit.style.left = x + 'px';
+          var hw = 6;
+          var x = (1 - value) * w - hw; 
+          hit.style.left = Math.max(-hw, Math.min(w - hw, x)) + 'px';
         }
 
         function getDeckState(){
@@ -1021,48 +1184,9 @@
           return { deckId, st: window.decks[deckId].state };
         }
 
-        function liftStylus(){
-          var d = getDeckState(); if (!d) return;
-          var st = d.st;
-          wasPlaying = !!st.isPlaying;
-          if (st.source){ try{ st.source.stop(); st.source.disconnect(); }catch(e){} st.source=null; }
-          st.isPlaying = false;
-          var deck = window.decks[d.deckId];
-          if (deck) deck.light.classList.remove('active');
-        }
-
-        function dropStylus(){
-          var d = getDeckState(); if (!d) return;
-          var deckId = d.deckId, st = d.st;
-          if (!st || !st.buffer) return;
-
-          st.playbackPos = value * st.buffer.duration;
-
-          if (value >= 0.999){
-            if (typeof window.stopDeck === 'function') window.stopDeck(deckId);
-            return;
-          }
-
-          if (wasPlaying){
-            var src = audioCtx.createBufferSource();
-            src.buffer = st.buffer;
-            src.connect(st.eq.low);
-            src.playbackRate.value = st.rate || 1.0;
-            st.rateNode = src.playbackRate;
-            st.source = src; st.isPlaying = true; st.lastUpdateTime = audioCtx.currentTime; st._rotLast = 0;
-            src.start(0, st.playbackPos);
-            src.onended = function(){ if (st.isPlaying && typeof window.stopDeck === 'function'){ window.stopDeck(deckId); } };
-            var deck = window.decks[deckId];
-            if (deck) deck.light.classList.add('active');
-          } else {
-            st.isPlaying = false;
-          }
-        }
-
         function setFromPlayback(){
           try{
-            var d = getDeckState();
-            if (!d) return;
+            var d = getDeckState(); if (!d) return;
             var st = d.st;
             if (st && st.buffer && !dragging){
               value = st.playbackPos / st.buffer.duration;
@@ -1073,56 +1197,63 @@
         }
 
         function start(e){
-          if (e.touches && e.touches.length > 1) return;
-          e.preventDefault();
-          dragging = true;
-          liftStylus();
+          e.preventDefault(); dragging = true;
+          if(e.type==='touchstart') stylusTouchId = e.changedTouches[0].identifier;
         }
-        function move(clientX){
+        function move(e){
           if (!dragging) return;
+          let cx;
+          if(e.type === 'touchmove'){
+             let t=null;
+             for(let i=0; i<e.changedTouches.length; i++){
+               if(e.changedTouches[i].identifier === stylusTouchId){ t=e.changedTouches[i]; break; }
+             }
+             if(!t) return;
+             cx = t.clientX;
+          } else { cx = e.clientX; }
+
           var rect = slider.getBoundingClientRect();
-          var x = Math.max(0, Math.min(clientX - rect.left, rect.width));
+          var x = Math.max(0, Math.min(cx - rect.left, rect.width));
           value = 1 - (x / rect.width);
           render();
+          
+          var d = getDeckState();
+          if (d && d.st && d.st.buffer) {
+             d.st.playbackPos = value * d.st.buffer.duration;
+          }
         }
-        function end(){
+        function end(e){
           if (!dragging) return;
+          if(e.type==='touchend'){
+             let found=false;
+             for(let i=0; i<e.changedTouches.length; i++){
+               if(e.changedTouches[i].identifier === stylusTouchId){ found=true; break; }
+             }
+             if(!found) return;
+             stylusTouchId = null;
+          }
           dragging = false;
-          dropStylus();
         }
 
-        hit.addEventListener('mousedown', function(e){ start(e); });
-        document.addEventListener('mousemove', function(e){ move(e.clientX); });
+        hit.addEventListener('mousedown', start);
+        document.addEventListener('mousemove', move);
         document.addEventListener('mouseup', end);
-
-        hit.addEventListener('touchstart', function(e){ start(e); }, { passive:false });
-        document.addEventListener('touchmove', function(e){
-          if(e.touches && e.touches.length > 1) return;
-          if(e.touches && e.touches.length){ move(e.touches[0].clientX); }
-        }, { passive:false });
+        hit.addEventListener('touchstart', start, { passive:false });
+        document.addEventListener('touchmove', move, { passive:false });
         document.addEventListener('touchend', end);
-
-        slider.addEventListener('click', function(e){
-          var d = getDeckState(); if (!d) return;
-          liftStylus();
-          var rect = slider.getBoundingClientRect();
-          var x = Math.max(0, Math.min(e.clientX - rect.left, rect.width));
-          value = 1 - (x / rect.width);
-          render();
-          dropStylus();
-        });
 
         function resize(){ slider.style.width = computeTravelPx(record) + 'px'; render(); }
         window.addEventListener('resize', resize);
-
         function sync(){ setFromPlayback(); requestAnimationFrame(sync); }
         requestAnimationFrame(sync);
-        render();
+        // Force initial render
+        setTimeout(resize, 100);
       }
 
       function boot(){ document.querySelectorAll('.record').forEach(createStylus); }
       if (document.readyState === 'loading'){ document.addEventListener('DOMContentLoaded', boot); } else { boot(); }
     })();
   </script>
+</div>
 </body>
 </html>

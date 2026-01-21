@@ -27,28 +27,36 @@
         touch-action: none;
     }
 
-    /* FLUID CONTAINER - No fixed pixels */
+    /* FLUID CONTAINER */
     .dj-container {
       width: 100vw;
       height: 100vh;
       display: flex;
       flex-direction: column;
-      padding: 1vh 1vw; /* Tiny padding */
+      padding: 1vh 1vw;
       box-sizing: border-box;
+      overflow: hidden; /* Prevent body scroll, handle inside main-mix if needed */
     }
 
     /* --- HEADER --- */
     #fileLoader {
-      flex: 0 0 auto; /* Don't shrink */
-      height: 50px;
+      flex: 0 0 auto;
+      min-height: 50px;
       display: flex; justify-content: space-between; align-items: center;
-      padding: 0 16px;
+      padding: 4px 16px;
       margin-bottom: 8px;
       background: #0a0a0c;
       border: 1px solid var(--border-subtle);
       border-radius: 12px;
+      flex-wrap: wrap; /* Allow wrapping on very small screens */
+      gap: 8px;
     }
-    .app-title { font-weight: 900; font-size: clamp(1rem, 2vw, 1.5rem); letter-spacing: -0.02em; white-space: nowrap; }
+    .app-title { 
+      font-weight: 900; 
+      font-size: clamp(0.8rem, 2vw, 1.5rem); 
+      letter-spacing: -0.02em; 
+      white-space: nowrap; 
+    }
     .file-loader-group { display: flex; gap: 8px; align-items: center; }
     
     .mini-btn {
@@ -61,14 +69,96 @@
 
     /* --- DECK LAYOUT (GRID) --- */
     .main-mix {
-      flex: 1; /* Take all remaining height */
+      flex: 1; 
       display: grid;
-      /* 3 Columns: Deck A, Mixer (fixed max width), Deck B */
-      grid-template-columns: 1fr minmax(280px, 25%) 1fr; 
+      /* Default: Desktop/Tablet Landscape */
+      grid-template-columns: 1fr minmax(200px, 25%) 1fr; 
       gap: 1vw;
-      min-height: 0; /* Critical for scrolling prevention */
+      min-height: 0;
+      overflow: hidden;
     }
 
+    /* --- RESPONSIVE LOGIC --- */
+
+    /* Portrait Mode (Phones & Small Tablets) */
+    @media (max-width: 768px) {
+      .dj-container {
+        padding: 4px; /* Save space */
+      }
+      .main-mix {
+        display: flex;
+        flex-direction: column; /* Stack vertically */
+        overflow-y: auto; /* Enable vertical scrolling */
+        gap: 8px;
+        padding-bottom: 20px; /* Space for scrolling */
+      }
+      #fileLoader {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+        min-height: auto;
+        padding: 8px;
+      }
+      .file-loader-group {
+        justify-content: space-between;
+      }
+      .app-title span {
+        display: none; /* Hide copyright text on mobile to save space */
+      }
+      .turntable, .mixer {
+        min-height: 400px; /* Ensure controls aren't squashed */
+        flex: 0 0 auto; /* Don't shrink */
+      }
+      .mixer {
+        min-height: auto; /* Mixer can be shorter */
+        order: 2; /* Keep mixer in middle */
+      }
+      #deckA { order: 1; }
+      #deckB { order: 3; }
+      
+      /* Adjust faders for vertical layout */
+      .horizontal-fader-group {
+        min-height: 150px;
+      }
+      #volA, #volB {
+        width: 140px; /* Fixed functional size for touch */
+      }
+    }
+
+    /* Landscape Mode (Small Screens/Phones rotated) */
+    @media (max-width: 900px) and (orientation: landscape) {
+      .app-title span { display: none; }
+      #fileLoader {
+        height: 40px; margin-bottom: 4px;
+        padding: 0 8px;
+      }
+      .mini-btn { padding: 4px 8px; font-size: 0.6rem; }
+      
+      .main-mix {
+        /* Squeeze the mixer more */
+        grid-template-columns: 1fr 22% 1fr;
+        gap: 4px;
+      }
+      .turntable, .mixer {
+        padding: 4px;
+      }
+      .record-plate {
+        width: 25vmin; height: 25vmin; /* Smaller records */
+        max-width: 200px; max-height: 200px;
+      }
+      input[type=range]::-webkit-slider-thumb {
+        height: 14px; width: 14px; margin-top: -5px;
+      }
+      .deck-controls .btn {
+        padding: 6px 0; font-size: 0.65rem;
+      }
+      /* Faders need to fit short height */
+      #volA, #volB {
+        width: 15vh; 
+      }
+    }
+
+    /* --- COMPONENT STYLES --- */
     .turntable {
       background: linear-gradient(180deg, #25252b 0%, #15151a 100%);
       border: 1px solid var(--border-subtle); border-radius: 16px;
@@ -82,11 +172,10 @@
       background: #15151a; border: 1px solid var(--border-subtle); border-radius: 16px;
       padding: 1.5vh 1vw;
       display: flex; flex-direction: column;
-      justify-content: space-between; /* Space out faders vertically */
+      justify-content: space-between;
       gap: 1vh;
     }
 
-    /* --- COMPONENT STYLES --- */
     label { 
         font-size: 0.65rem; font-weight: 700; color: #94a3b8; 
         letter-spacing: 0.05em; margin-bottom: 2px; display: block; 
@@ -107,7 +196,7 @@
     }
 
     /* --- EQ & FX --- */
-    .eq-section { display: flex; gap: 8px; flex: 0 0 auto; margin-bottom: 1vh; }
+    .eq-section { display: flex; gap: 4px; flex: 0 0 auto; margin-bottom: 1vh; }
     .eq-knob { flex: 1; text-align: center; }
     
     .fx-panel { 
@@ -119,13 +208,12 @@
 
     /* --- RECORD (FLUID SIZE) --- */
     .record-container {
-      flex: 1; /* Grow to fill space */
+      flex: 1; 
       display: flex; align-items: center; justify-content: center;
       min-height: 0;
       padding: 1vh 0;
     }
     .record-plate {
-      /* Key to fluid sizing: responsive to Viewport Min (vmin) but capped */
       width: 35vmin; height: 35vmin;
       max-width: 320px; max-height: 320px;
       position: relative;
@@ -155,7 +243,7 @@
 
     /* --- DECK CONTROLS --- */
     .deck-controls { 
-      flex: 0 0 auto; /* Don't shrink */
+      flex: 0 0 auto; 
       display: flex; flex-direction: column; gap: 1vh; 
     }
     .track-display-window {
@@ -195,7 +283,7 @@
     
     .horizontal-fader-group { 
         display: flex; justify-content: space-between; align-items: center; 
-        flex: 1; /* Grow to fill vertical space */
+        flex: 1; 
         min-height: 100px;
     }
     
@@ -205,14 +293,14 @@
         display: flex; flex-direction: column; align-items: center; justify-content: center; 
         position: relative;
     }
-    /* We use absolute positioning to fake vertical rotation in a flex container */
+    
     .vertical-slider-wrapper {
         width: 100%; height: 100%; position: relative;
         display: flex; justify-content: center; align-items: center;
     }
     #volA, #volB { 
         transform: rotate(-90deg); 
-        width: 20vh; /* Responsive length based on screen height */
+        width: 20vh; /* Base dynamic width */
         max-width: 200px; 
     }
     .fader-control-horizontal input[type=range]::-webkit-slider-thumb {

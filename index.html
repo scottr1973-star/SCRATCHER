@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Scratcher Pro 2026 - Fluid</title>
+  <title>Scratcher Pro 2026 - Scaled</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@700&family=Inter:wght@500;700;900&display=swap');
@@ -17,152 +17,75 @@
     }
 
     html, body { 
-        height: 100%; width: 100%; margin: 0; padding: 0;
+        width: 100%; height: 100%; margin: 0; padding: 0;
         overflow: hidden; 
-        background-color: var(--bg-deep);
-        background-image: radial-gradient(circle at center, #15151a 0%, #000 100%);
+        background-color: #000; /* Black borders for letterboxing */
         font-family: 'Inter', sans-serif;
         color: var(--text-main);
         -webkit-font-smoothing: antialiased;
         touch-action: none;
+        display: flex; 
+        align-items: center; 
+        justify-content: center;
     }
 
-    /* FLUID CONTAINER */
-    .dj-container {
-      width: 100vw;
-      height: 100vh;
-      display: flex;
-      flex-direction: column;
-      padding: 1vh 1vw;
-      box-sizing: border-box;
-      overflow: hidden; /* Prevent body scroll, handle inside main-mix if needed */
-    }
-
-    /* --- HEADER --- */
-    #fileLoader {
+    /* --- SCALING CONTAINER --- 
+       This container is locked to a specific "Laptop" resolution (1280x800).
+       The Javascript at the bottom scales this entire div to fit whatever screen you are on.
+    */
+    #app-scaler {
+      width: 1280px;  /* FIXED BASE WIDTH */
+      height: 800px;  /* FIXED BASE HEIGHT */
+      position: relative;
+      background-color: var(--bg-deep);
+      background-image: radial-gradient(circle at center, #15151a 0%, #000 100%);
+      transform-origin: center center; /* Scale from center */
+      box-shadow: 0 0 50px rgba(0,0,0,0.5);
       flex: 0 0 auto;
-      min-height: 50px;
+    }
+
+    /* --- INNER LAYOUT (Restored to "Perfect Laptop" Specs) --- */
+    .dj-container {
+      width: 100%; height: 100%;
+      display: flex; flex-direction: column;
+      padding: 15px; 
+      box-sizing: border-box;
+    }
+
+    #fileLoader {
+      flex: 0 0 60px;
       display: flex; justify-content: space-between; align-items: center;
-      padding: 4px 16px;
-      margin-bottom: 8px;
+      padding: 0 20px;
+      margin-bottom: 15px;
       background: #0a0a0c;
       border: 1px solid var(--border-subtle);
       border-radius: 12px;
-      flex-wrap: wrap; /* Allow wrapping on very small screens */
-      gap: 8px;
     }
-    .app-title { 
-      font-weight: 900; 
-      font-size: clamp(0.8rem, 2vw, 1.5rem); 
-      letter-spacing: -0.02em; 
-      white-space: nowrap; 
-    }
-    .file-loader-group { display: flex; gap: 8px; align-items: center; }
+    .app-title { font-weight: 900; font-size: 24px; letter-spacing: -0.02em; }
+    .file-loader-group { display: flex; gap: 10px; align-items: center; }
     
     .mini-btn {
       background: linear-gradient(180deg, #2a2a30, #1a1a20);
-      color: var(--text-main); font-size: 0.7rem; font-weight: 700;
-      padding: 8px 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.1);
+      color: var(--text-main); font-size: 12px; font-weight: 700;
+      padding: 10px 16px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.1);
       cursor: pointer; text-transform: uppercase; white-space: nowrap;
     }
     .mini-btn.red { background: linear-gradient(180deg, #7f1d1d, #450a0a); border-color: #991b1b; }
 
-    /* --- DECK LAYOUT (GRID) --- */
+    /* DECK LAYOUT */
     .main-mix {
       flex: 1; 
       display: grid;
-      /* Default: Desktop/Tablet Landscape */
-      grid-template-columns: 1fr minmax(200px, 25%) 1fr; 
-      gap: 1vw;
+      /* Fixed pixel values used safely because the whole container scales */
+      grid-template-columns: 1fr 340px 1fr; 
+      gap: 20px;
       min-height: 0;
-      overflow: hidden;
     }
 
-    /* --- RESPONSIVE LOGIC --- */
-
-    /* Portrait Mode (Phones & Small Tablets) */
-    @media (max-width: 768px) {
-      .dj-container {
-        padding: 4px; /* Save space */
-      }
-      .main-mix {
-        display: flex;
-        flex-direction: column; /* Stack vertically */
-        overflow-y: auto; /* Enable vertical scrolling */
-        gap: 8px;
-        padding-bottom: 20px; /* Space for scrolling */
-      }
-      #fileLoader {
-        flex-direction: column;
-        align-items: stretch;
-        gap: 8px;
-        min-height: auto;
-        padding: 8px;
-      }
-      .file-loader-group {
-        justify-content: space-between;
-      }
-      .app-title span {
-        display: none; /* Hide copyright text on mobile to save space */
-      }
-      .turntable, .mixer {
-        min-height: 400px; /* Ensure controls aren't squashed */
-        flex: 0 0 auto; /* Don't shrink */
-      }
-      .mixer {
-        min-height: auto; /* Mixer can be shorter */
-        order: 2; /* Keep mixer in middle */
-      }
-      #deckA { order: 1; }
-      #deckB { order: 3; }
-      
-      /* Adjust faders for vertical layout */
-      .horizontal-fader-group {
-        min-height: 150px;
-      }
-      #volA, #volB {
-        width: 140px; /* Fixed functional size for touch */
-      }
-    }
-
-    /* Landscape Mode (Small Screens/Phones rotated) */
-    @media (max-width: 900px) and (orientation: landscape) {
-      .app-title span { display: none; }
-      #fileLoader {
-        height: 40px; margin-bottom: 4px;
-        padding: 0 8px;
-      }
-      .mini-btn { padding: 4px 8px; font-size: 0.6rem; }
-      
-      .main-mix {
-        /* Squeeze the mixer more */
-        grid-template-columns: 1fr 22% 1fr;
-        gap: 4px;
-      }
-      .turntable, .mixer {
-        padding: 4px;
-      }
-      .record-plate {
-        width: 25vmin; height: 25vmin; /* Smaller records */
-        max-width: 200px; max-height: 200px;
-      }
-      input[type=range]::-webkit-slider-thumb {
-        height: 14px; width: 14px; margin-top: -5px;
-      }
-      .deck-controls .btn {
-        padding: 6px 0; font-size: 0.65rem;
-      }
-      /* Faders need to fit short height */
-      #volA, #volB {
-        width: 15vh; 
-      }
-    }
-
-    /* --- COMPONENT STYLES --- */
     .turntable {
       background: linear-gradient(180deg, #25252b 0%, #15151a 100%);
       border: 1px solid var(--border-subtle); border-radius: 16px;
-      padding: 1.5vh 1.5vw;
+      padding: 20px;
       display: flex; flex-direction: column;
       position: relative;
       overflow: hidden;
@@ -170,15 +93,16 @@
 
     .mixer {
       background: #15151a; border: 1px solid var(--border-subtle); border-radius: 16px;
-      padding: 1.5vh 1vw;
+      padding: 20px 15px;
       display: flex; flex-direction: column;
       justify-content: space-between;
-      gap: 1vh;
+      gap: 15px;
     }
 
+    /* CONTROLS */
     label { 
-        font-size: 0.65rem; font-weight: 700; color: #94a3b8; 
-        letter-spacing: 0.05em; margin-bottom: 2px; display: block; 
+        font-size: 11px; font-weight: 700; color: #94a3b8; 
+        letter-spacing: 0.05em; margin-bottom: 4px; display: block; 
     }
     
     input[type=range] { -webkit-appearance: none; width: 100%; background: transparent; cursor: grab; margin: 0; }
@@ -190,32 +114,29 @@
       box-shadow: inset 0 2px 4px rgba(0,0,0,0.9);
     }
     input[type=range]::-webkit-slider-thumb {
-      -webkit-appearance: none; height: 16px; width: 16px; border-radius: 50%; margin-top: -6px;
+      -webkit-appearance: none; height: 18px; width: 18px; border-radius: 50%; margin-top: -6px;
       background: radial-gradient(circle at 30% 30%, #e2e8f0 0%, #94a3b8 40%, #475569 100%);
       border: 1px solid #000; box-shadow: 0 4px 8px rgba(0,0,0,0.7);
     }
 
-    /* --- EQ & FX --- */
-    .eq-section { display: flex; gap: 4px; flex: 0 0 auto; margin-bottom: 1vh; }
+    .eq-section { display: flex; gap: 10px; flex: 0 0 auto; margin-bottom: 15px; }
     .eq-knob { flex: 1; text-align: center; }
     
     .fx-panel { 
-      background: rgba(0,0,0,0.3); border-radius: 12px; padding: 1vh 1vw;
-      display: grid; grid-template-columns: 1fr 1fr; gap: 1vh;
+      background: rgba(0,0,0,0.3); border-radius: 12px; padding: 10px;
+      display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
       flex: 0 0 auto;
     }
     .fx-control { text-align: center; }
 
-    /* --- RECORD (FLUID SIZE) --- */
+    /* RECORD */
     .record-container {
       flex: 1; 
       display: flex; align-items: center; justify-content: center;
-      min-height: 0;
-      padding: 1vh 0;
+      min-height: 0; padding: 10px 0;
     }
     .record-plate {
-      width: 35vmin; height: 35vmin;
-      max-width: 320px; max-height: 320px;
+      width: 320px; height: 320px; /* Fixed size, scaling handles the rest */
       position: relative;
       border-radius: 50%; background: #080808;
       box-shadow: 0 10px 30px rgba(0,0,0,0.6), 0 0 0 6px #18181b, 0 0 0 7px #000;
@@ -230,7 +151,7 @@
       position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
       width: 35%; height: 35%; border-radius: 50%;
       display: flex; align-items: center; justify-content: center;
-      font-weight: 900; font-size: 1.5rem; color: #fff;
+      font-weight: 900; font-size: 24px; color: #fff;
       box-shadow: 0 4px 10px rgba(0,0,0,0.5), inset 0 0 20px rgba(0,0,0,0.2);
       border: 4px solid rgba(0,0,0,0.1);
     }
@@ -241,26 +162,25 @@
       width: 6%; height: 6%; border-radius: 50%; background: #fff; box-shadow: 0 0 10px #fff;
     }
 
-    /* --- DECK CONTROLS --- */
+    /* DECK CONTROLS */
     .deck-controls { 
-      flex: 0 0 auto; 
-      display: flex; flex-direction: column; gap: 1vh; 
+      flex: 0 0 auto; display: flex; flex-direction: column; gap: 10px; 
     }
     .track-display-window {
-      background: #000; border: 1px solid #333; border-radius: 6px; padding: 8px;
-      font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; color: var(--accent-primary);
+      background: #000; border: 1px solid #333; border-radius: 6px; padding: 10px;
+      font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--accent-primary);
       text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
       box-shadow: inset 0 2px 10px rgba(0,0,0,0.8);
     }
     .track-select {
       width: 100%; background: #0f172a; color: #fff; border: 1px solid #334155;
-      padding: 8px; border-radius: 8px; font-size: 0.75rem; font-weight: 600;
+      padding: 8px; border-radius: 8px; font-size: 12px; font-weight: 600;
     }
-    .controls-row { display: flex; gap: 8px; }
+    .controls-row { display: flex; gap: 10px; }
     
     .btn {
-      flex: 1; padding: 12px 0; border-radius: 8px; border: none;
-      font-weight: 800; font-size: 0.75rem; cursor: pointer;
+      flex: 1; padding: 14px 0; border-radius: 8px; border: none;
+      font-weight: 800; font-size: 12px; cursor: pointer;
       box-shadow: 0 4px 0 rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.1);
       text-transform: uppercase;
     }
@@ -278,30 +198,25 @@
     }
     .status-light.active { background: #00ff66; box-shadow: 0 0 15px #00ff66; }
 
-    /* --- MIXER CENTER --- */
+    /* MIXER CONTROLS */
     .master-hp-row { display: flex; justify-content: space-between; gap: 10px; flex: 0 0 auto;}
     
     .horizontal-fader-group { 
         display: flex; justify-content: space-between; align-items: center; 
-        flex: 1; 
-        min-height: 100px;
+        flex: 1; min-height: 160px;
     }
     
-    /* Vertical Faders (Fluid) */
     .fader-control-horizontal { 
         height: 100%; width: 30%;
         display: flex; flex-direction: column; align-items: center; justify-content: center; 
         position: relative;
     }
-    
     .vertical-slider-wrapper {
         width: 100%; height: 100%; position: relative;
         display: flex; justify-content: center; align-items: center;
     }
     #volA, #volB { 
-        transform: rotate(-90deg); 
-        width: 20vh; /* Base dynamic width */
-        max-width: 200px; 
+        transform: rotate(-90deg); width: 160px; max-width: 200px; 
     }
     .fader-control-horizontal input[type=range]::-webkit-slider-thumb {
       border-radius: 2px; height: 28px; width: 40px;
@@ -310,7 +225,7 @@
     }
 
     .vu-meter {
-      width: 16px; height: 80%; background: #000; border-radius: 4px;
+      width: 16px; height: 140px; background: #000; border-radius: 4px;
       display: flex; flex-direction: column-reverse; padding: 2px; gap: 2px;
       border: 1px solid #333;
     }
@@ -319,8 +234,7 @@
     .vu-segment.yellow.on { background: #facc15; }
     .vu-segment.red.on { background: #ef4444; }
 
-    /* Crossfader */
-    .crossfader-container { padding: 1vh 0; flex: 0 0 auto; }
+    .crossfader-container { padding: 10px 0; flex: 0 0 auto; }
     .crossfader-rail {
       height: 12px; background: #000; border-radius: 6px; position: relative;
       box-shadow: inset 0 2px 5px rgba(0,0,0,0.9), 0 1px 0 rgba(255,255,255,0.1); border: 1px solid #111;
@@ -348,197 +262,217 @@
       border-left: 8px solid transparent; border-right: 8px solid transparent; border-bottom: 24px solid var(--accent-primary);
       filter: drop-shadow(0 0 6px var(--accent-primary));
     }
-
   </style>
 </head>
 <body>
-  
-  <div class="dj-container">
-      
-      <div id="fileLoader">
-        <h1 class="app-title">SCRATCHER PRO <span style="font-weight:300; color:var(--accent-primary); font-size:0.8em;">MOONSKAI LABS L.L.C. copyright 2026 all rights reserved</span></h1>
-        <div class="file-loader-group">
-          <input type="file" id="musicFiles" multiple webkitdirectory directory style="display:none;">
-          <input type="file" id="filePicker" multiple accept="audio/*" style="display:none;">
-          <button id="loadFilesBtn" class="mini-btn">📁 Folder</button>
-          <button id="addFilesBtn"  class="mini-btn">📄 Files</button>
-          <button id="clearLibBtn"  class="mini-btn red">✕ Clear</button>
-        </div>
-        <div id="loadingStatus" class="text-xs text-gray-400 font-bold tracking-wide">EMPTY</div>
-      </div>
 
-      <div class="main-mix">
+  <div id="app-scaler">
+    
+    <div class="dj-container">
         
-        <div class="turntable" id="deckA">
-          <div class="track-display-window" id="statusA">NO TRACK LOADED</div>
+        <div id="fileLoader">
+          <h1 class="app-title">SCRATCHER PRO <span style="font-weight:300; color:var(--accent-primary); font-size:0.8em;">MOONSKAI LABS L.L.C. copyright 2026 all rights reserved</span></h1>
+          <div class="file-loader-group">
+            <input type="file" id="musicFiles" multiple webkitdirectory directory style="display:none;">
+            <input type="file" id="filePicker" multiple accept="audio/*" style="display:none;">
+            <button id="loadFilesBtn" class="mini-btn">📁 Folder</button>
+            <button id="addFilesBtn"  class="mini-btn">📄 Files</button>
+            <button id="clearLibBtn"  class="mini-btn red">✕ Clear</button>
+          </div>
+          <div id="loadingStatus" class="text-xs text-gray-400 font-bold tracking-wide">EMPTY</div>
+        </div>
+
+        <div class="main-mix">
           
-          <div class="eq-section">
-            <div class="eq-knob"><label>HI</label><input type="range" id="eqHighA" min="-12" max="12" step="0.1" value="0.0"></div>
-            <div class="eq-knob"><label>MID</label><input type="range" id="eqMidA" min="-12" max="12" step="0.1" value="0.0"></div>
-            <div class="eq-knob"><label>LO</label><input type="range" id="eqLowA" min="-12" max="12" step="0.1" value="0.0"></div>
-          </div>
-
-          <div class="record-container">
-            <div class="record-plate">
-              <div class="record" id="recordA">
-                <div class="record-label">A</div>
-                <div class="cue-mark"></div>
-              </div>
-            </div>
-          </div>
-
-          <div class="deck-controls">
-            <div style="display:flex; justify-content:space-between; align-items:center;">
-              <label>PITCH</label>
-              <input type="range" id="pitchA" min="0.5" max="1.5" step="0.01" value="1.0" style="width:70%">
-            </div>
+          <div class="turntable" id="deckA">
+            <div class="track-display-window" id="statusA">NO TRACK LOADED</div>
             
-            <select class="track-select" id="trackSelectA"><option value="-1" disabled selected>Select Track A</option></select>
-
-            <div class="controls-row">
-              <button class="btn play-btn" id="playA">PLAY</button>
-              <button class="btn cue-btn"  id="cueA">CUE</button>
-              <button class="btn stop-btn" id="stopA">STOP</button>
-              <div class="status-light" id="lightA"></div>
+            <div class="eq-section">
+              <div class="eq-knob"><label>HI</label><input type="range" id="eqHighA" min="-12" max="12" step="0.1" value="0.0"></div>
+              <div class="eq-knob"><label>MID</label><input type="range" id="eqMidA" min="-12" max="12" step="0.1" value="0.0"></div>
+              <div class="eq-knob"><label>LO</label><input type="range" id="eqLowA" min="-12" max="12" step="0.1" value="0.0"></div>
             </div>
+
+            <div class="record-container">
+              <div class="record-plate">
+                <div class="record" id="recordA">
+                  <div class="record-label">A</div>
+                  <div class="cue-mark"></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="deck-controls">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <label>PITCH</label>
+                <input type="range" id="pitchA" min="0.5" max="1.5" step="0.01" value="1.0" style="width:70%">
+              </div>
+              
+              <select class="track-select" id="trackSelectA"><option value="-1" disabled selected>Select Track A</option></select>
+
+              <div class="controls-row">
+                <button class="btn play-btn" id="playA">PLAY</button>
+                <button class="btn cue-btn"  id="cueA">CUE</button>
+                <button class="btn stop-btn" id="stopA">STOP</button>
+                <div class="status-light" id="lightA"></div>
+              </div>
+              
+              <div class="controls-row">
+                <button class="mini-btn" id="unloadA" style="flex:1">Unload</button>
+                <button class="mini-btn red" id="removeA" style="flex:1">Remove</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="mixer">
             
-            <div class="controls-row">
-              <button class="mini-btn" id="unloadA" style="flex:1">Unload</button>
-              <button class="mini-btn red" id="removeA" style="flex:1">Remove</button>
+            <div class="master-hp-row">
+              <div style="width:48%">
+                <label>MASTER</label>
+                <input type="range" id="masterVol" min="0" max="1" step="0.01" value="0.9">
+              </div>
+              <div style="width:48%">
+                <label>PHONES</label>
+                <input type="range" id="hpVol" min="0" max="1" step="0.01" value="0.8">
+              </div>
+            </div>
+
+            <div class="horizontal-fader-group">
+              <div class="fader-control-horizontal">
+                <div class="vertical-slider-wrapper">
+                  <input type="range" id="volA" min="0" max="1" step="0.01" value="0.7">
+                </div>
+                <label>CH A</label>
+              </div>
+
+              <div class="master-controls-group" style="display:flex; flex-direction:column; align-items:center;">
+                <div class="vu-meter" id="masterVUMeter">
+                  <div class="vu-segment red" data-level="10"></div>
+                  <div class="vu-segment red" data-level="9"></div>
+                  <div class="vu-segment yellow" data-level="8"></div>
+                  <div class="vu-segment yellow" data-level="7"></div>
+                  <div class="vu-segment" data-level="6"></div>
+                  <div class="vu-segment" data-level="5"></div>
+                  <div class="vu-segment" data-level="4"></div>
+                  <div class="vu-segment" data-level="3"></div>
+                  <div class="vu-segment" data-level="2"></div>
+                  <div class="vu-segment" data-level="1"></div>
+                </div>
+                <label style="margin-top:5px">dB</label>
+              </div>
+
+              <div class="fader-control-horizontal">
+                <div class="vertical-slider-wrapper">
+                  <input type="range" id="volB" min="0" max="1" step="0.01" value="0.7">
+                </div>
+                <label>CH B</label>
+              </div>
+            </div>
+
+            <div class="fx-panel">
+              <div class="fx-control">
+                <label>FILTER</label>
+                <input type="range" id="masterFilterFreq" min="100" max="18000" step="10" value="18000">
+              </div>
+              <div class="fx-control">
+                <label>DLY MIX</label>
+                <input type="range" id="delayWetDry" min="0" max="1" step="0.01" value="0.0">
+              </div>
+              <div class="fx-control">
+                <label>DLY TIME</label>
+                <input type="range" id="delayTime" min="0.05" max="0.5" step="0.01" value="0.3">
+              </div>
+              <div class="fx-control">
+                <label>DLY FB</label>
+                <input type="range" id="delayFeedback" min="0.1" max="0.9" step="0.01" value="0.3">
+              </div>
+              <div class="fx-control">
+                <label>RVB MIX</label>
+                <input type="range" id="reverbWetDry" min="0" max="1" step="0.01" value="0.0">
+              </div>
+              <div class="fx-control">
+                <label>CUE MIX</label>
+                <input type="range" id="hpMix" min="0" max="1" step="0.01" value="0.5">
+              </div>
+            </div>
+
+            <div class="crossfader-container">
+              <label style="text-align:center;">CROSSFADER</label>
+              <div class="crossfader-rail" id="crossfaderRail">
+                <div class="crossfader-handle" id="crossfaderHandle"></div>
+              </div>
+              <div style="display:flex; justify-content:space-between; padding-top:4px;">
+                <span class="text-xs font-bold text-gray-500">A</span>
+                <span class="text-xs font-bold text-gray-500">B</span>
+              </div>
             </div>
           </div>
+
+          <div class="turntable" id="deckB">
+            <div class="track-display-window" id="statusB">NO TRACK LOADED</div>
+            
+            <div class="eq-section">
+              <div class="eq-knob"><label>HI</label><input type="range" id="eqHighB" min="-12" max="12" step="0.1" value="0.0"></div>
+              <div class="eq-knob"><label>MID</label><input type="range" id="eqMidB" min="-12" max="12" step="0.1" value="0.0"></div>
+              <div class="eq-knob"><label>LO</label><input type="range" id="eqLowB" min="-12" max="12" step="0.1" value="0.0"></div>
+            </div>
+
+            <div class="record-container">
+              <div class="record-plate">
+                <div class="record" id="recordB">
+                  <div class="record-label">B</div>
+                  <div class="cue-mark"></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="deck-controls">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <label>PITCH</label>
+                <input type="range" id="pitchB" min="0.5" max="1.5" step="0.01" value="1.0" style="width:70%">
+              </div>
+
+              <select class="track-select" id="trackSelectB"><option value="-1" disabled selected>Select Track B</option></select>
+
+              <div class="controls-row">
+                <button class="btn play-btn" id="playB">PLAY</button>
+                <button class="btn cue-btn"  id="cueB">CUE</button>
+                <button class="btn stop-btn" id="stopB">STOP</button>
+                <div class="status-light" id="lightB"></div>
+              </div>
+
+              <div class="controls-row">
+                <button class="mini-btn" id="unloadB" style="flex:1">Unload</button>
+                <button class="mini-btn red" id="removeB" style="flex:1">Remove</button>
+              </div>
+            </div>
+          </div>
+
         </div>
-
-        <div class="mixer">
-          
-          <div class="master-hp-row">
-            <div style="width:48%">
-              <label>MASTER</label>
-              <input type="range" id="masterVol" min="0" max="1" step="0.01" value="0.9">
-            </div>
-            <div style="width:48%">
-              <label>PHONES</label>
-              <input type="range" id="hpVol" min="0" max="1" step="0.01" value="0.8">
-            </div>
-          </div>
-
-          <div class="horizontal-fader-group">
-            <div class="fader-control-horizontal">
-              <div class="vertical-slider-wrapper">
-                <input type="range" id="volA" min="0" max="1" step="0.01" value="0.7">
-              </div>
-              <label>CH A</label>
-            </div>
-
-            <div class="master-controls-group" style="display:flex; flex-direction:column; align-items:center;">
-              <div class="vu-meter" id="masterVUMeter">
-                <div class="vu-segment red" data-level="10"></div>
-                <div class="vu-segment red" data-level="9"></div>
-                <div class="vu-segment yellow" data-level="8"></div>
-                <div class="vu-segment yellow" data-level="7"></div>
-                <div class="vu-segment" data-level="6"></div>
-                <div class="vu-segment" data-level="5"></div>
-                <div class="vu-segment" data-level="4"></div>
-                <div class="vu-segment" data-level="3"></div>
-                <div class="vu-segment" data-level="2"></div>
-                <div class="vu-segment" data-level="1"></div>
-              </div>
-              <label style="margin-top:5px">dB</label>
-            </div>
-
-            <div class="fader-control-horizontal">
-              <div class="vertical-slider-wrapper">
-                <input type="range" id="volB" min="0" max="1" step="0.01" value="0.7">
-              </div>
-              <label>CH B</label>
-            </div>
-          </div>
-
-          <div class="fx-panel">
-            <div class="fx-control">
-              <label>FILTER</label>
-              <input type="range" id="masterFilterFreq" min="100" max="18000" step="10" value="18000">
-            </div>
-            <div class="fx-control">
-              <label>DLY MIX</label>
-              <input type="range" id="delayWetDry" min="0" max="1" step="0.01" value="0.0">
-            </div>
-            <div class="fx-control">
-              <label>DLY TIME</label>
-              <input type="range" id="delayTime" min="0.05" max="0.5" step="0.01" value="0.3">
-            </div>
-            <div class="fx-control">
-              <label>DLY FB</label>
-              <input type="range" id="delayFeedback" min="0.1" max="0.9" step="0.01" value="0.3">
-            </div>
-            <div class="fx-control">
-              <label>RVB MIX</label>
-              <input type="range" id="reverbWetDry" min="0" max="1" step="0.01" value="0.0">
-            </div>
-            <div class="fx-control">
-              <label>CUE MIX</label>
-              <input type="range" id="hpMix" min="0" max="1" step="0.01" value="0.5">
-            </div>
-          </div>
-
-          <div class="crossfader-container">
-            <label style="text-align:center;">CROSSFADER</label>
-            <div class="crossfader-rail" id="crossfaderRail">
-              <div class="crossfader-handle" id="crossfaderHandle"></div>
-            </div>
-            <div style="display:flex; justify-content:space-between; padding-top:4px;">
-              <span class="text-xs font-bold text-gray-500">A</span>
-              <span class="text-xs font-bold text-gray-500">B</span>
-            </div>
-          </div>
-        </div>
-
-        <div class="turntable" id="deckB">
-          <div class="track-display-window" id="statusB">NO TRACK LOADED</div>
-          
-          <div class="eq-section">
-            <div class="eq-knob"><label>HI</label><input type="range" id="eqHighB" min="-12" max="12" step="0.1" value="0.0"></div>
-            <div class="eq-knob"><label>MID</label><input type="range" id="eqMidB" min="-12" max="12" step="0.1" value="0.0"></div>
-            <div class="eq-knob"><label>LO</label><input type="range" id="eqLowB" min="-12" max="12" step="0.1" value="0.0"></div>
-          </div>
-
-          <div class="record-container">
-            <div class="record-plate">
-              <div class="record" id="recordB">
-                <div class="record-label">B</div>
-                <div class="cue-mark"></div>
-              </div>
-            </div>
-          </div>
-
-          <div class="deck-controls">
-            <div style="display:flex; justify-content:space-between; align-items:center;">
-              <label>PITCH</label>
-              <input type="range" id="pitchB" min="0.5" max="1.5" step="0.01" value="1.0" style="width:70%">
-            </div>
-
-            <select class="track-select" id="trackSelectB"><option value="-1" disabled selected>Select Track B</option></select>
-
-            <div class="controls-row">
-              <button class="btn play-btn" id="playB">PLAY</button>
-              <button class="btn cue-btn"  id="cueB">CUE</button>
-              <button class="btn stop-btn" id="stopB">STOP</button>
-              <div class="status-light" id="lightB"></div>
-            </div>
-
-            <div class="controls-row">
-              <button class="mini-btn" id="unloadB" style="flex:1">Unload</button>
-              <button class="mini-btn red" id="removeB" style="flex:1">Remove</button>
-            </div>
-          </div>
-        </div>
-
-      </div>
     </div>
-  
+  </div>
 
   <script>
-    /* --------- LOGIC CORE (Multitouch + Logic from working version) --------- */
+    /* --------- SCALE ENGINE --------- */
+    (function(){
+      const BASE_WIDTH = 1280;
+      const BASE_HEIGHT = 800;
+      const scaler = document.getElementById('app-scaler');
+
+      function resizeApp(){
+        const winW = window.innerWidth;
+        const winH = window.innerHeight;
+        const scale = Math.min(winW / BASE_WIDTH, winH / BASE_HEIGHT);
+        scaler.style.transform = `scale(${scale})`;
+      }
+      
+      window.addEventListener('resize', resizeApp);
+      resizeApp();
+    })();
+  </script>
+
+  <script>
+    /* --------- AUDIO & LOGIC CORE --------- */
     let TRACKS = [];
     let TRACK_KEYS = new Set();
     let audioCtx;
@@ -911,15 +845,13 @@
 
     let activeDeck = null;
 
-    /* -------- Crossfader Logic -------- */
+    /* -------- Crossfader Logic (Fixed) -------- */
     let isDraggingX = false;
     let crossfaderTouchId = null;
-    const HANDLE_HALF = 25; 
 
+    // Use pure percentage positioning to fix asymmetry
     function setCrossfaderUI(value){
-      const railWidth = crossfaderRail.offsetWidth;
-      const leftCSS = value * railWidth - HANDLE_HALF;
-      crossfaderHandle.style.left = `${leftCSS}px`;
+      crossfaderHandle.style.left = (value * 100) + '%';
     }
     window.addEventListener('load', ()=> setCrossfaderUI(.5));
 
@@ -928,13 +860,11 @@
     document.addEventListener('mousemove',(e)=>{
       if (!isDraggingX) return;
       const rect = crossfaderRail.getBoundingClientRect();
-      const railWidth = crossfaderRail.offsetWidth;
       let xScaled = e.clientX - rect.left;
       xScaled = Math.max(0, Math.min(xScaled, rect.width));
       const value = xScaled / rect.width;
       updateCrossfader(value);
-      const leftCSS = value * railWidth - HANDLE_HALF;
-      crossfaderHandle.style.left = `${leftCSS}px`;
+      setCrossfaderUI(value);
     });
 
     crossfaderHandle.addEventListener('touchstart',(e)=>{
@@ -951,13 +881,11 @@
       if(!touch) return;
 
       const rect = crossfaderRail.getBoundingClientRect();
-      const railWidth = crossfaderRail.offsetWidth;
       let xScaled = touch.clientX - rect.left;
       xScaled = Math.max(0, Math.min(xScaled, rect.width));
       const value = xScaled / rect.width;
       updateCrossfader(value);
-      const leftCSS = value * railWidth - HANDLE_HALF;
-      crossfaderHandle.style.left = `${leftCSS}px`;
+      setCrossfaderUI(value);
     }, {passive:false});
 
     document.addEventListener('touchend', (e)=>{
@@ -1257,6 +1185,7 @@
 
         var dragging = false, value = 0;
         var stylusTouchId = null;
+        var resumeOnDrop = false; // Flag to handle resume
 
         function render(){
           var w = slider.clientWidth;
@@ -1285,9 +1214,22 @@
         }
 
         function start(e){
-          e.preventDefault(); dragging = true;
+          e.preventDefault(); 
+          var d = getDeckState();
+          if (!d) return;
+
+          dragging = true;
           if(e.type==='touchstart') stylusTouchId = e.changedTouches[0].identifier;
+
+          // If playing, pause and mark for resume
+          if (d.st.isPlaying) {
+             resumeOnDrop = true;
+             window.stopDeck(d.deckId);
+          } else {
+             resumeOnDrop = false;
+          }
         }
+
         function move(e){
           if (!dragging) return;
           let cx;
@@ -1310,6 +1252,7 @@
              d.st.playbackPos = value * d.st.buffer.duration;
           }
         }
+
         function end(e){
           if (!dragging) return;
           if(e.type==='touchend'){
@@ -1321,6 +1264,15 @@
              stylusTouchId = null;
           }
           dragging = false;
+
+          // Resume playback from new spot if it was playing
+          if (resumeOnDrop) {
+             var d = getDeckState();
+             if (d && d.st.buffer) {
+                 window.playDeck(d.deckId);
+             }
+          }
+          resumeOnDrop = false;
         }
 
         hit.addEventListener('mousedown', start);
@@ -1342,6 +1294,5 @@
       if (document.readyState === 'loading'){ document.addEventListener('DOMContentLoaded', boot); } else { boot(); }
     })();
   </script>
-</div>
 </body>
 </html>
